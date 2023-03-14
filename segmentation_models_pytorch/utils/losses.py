@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 
 from . import base
@@ -60,7 +61,12 @@ class NLLLoss(nn.NLLLoss, base.Loss):
 
 
 class BCELoss(nn.BCELoss, base.Loss):
-    pass
+    # pass
+    def forward(self, y_pr, y_gt):
+        m = nn.Sigmoid()
+        loss = nn.BCELoss()
+        bce_loss = loss(m(y_pr), y_gt) #torch.autograd.Variable(y_gt)
+        return bce_loss
 
 
 class BCEWithLogitsLoss(nn.BCEWithLogitsLoss, base.Loss):

@@ -35,7 +35,9 @@ class DecoderBlock(nn.Module):
     def forward(self, x, skip=None):
         x = F.interpolate(x, scale_factor=2, mode="nearest")
         if skip is not None:
+            # print("concat in:", x.shape, skip.shape)
             x = torch.cat([x, skip], dim=1)
+            # print("concat out", x.shape)
             x = self.attention1(x)
         x = self.conv1(x)
         x = self.conv2(x)
@@ -107,15 +109,18 @@ class UnetDecoder(nn.Module):
 
     def forward(self, *features):
 
+        # import pdb; pdb.set_trace()
         features = features[1:]  # remove first skip with same spatial resolution
         features = features[::-1]  # reverse channels to start from head of encoder
 
         head = features[0]
         skips = features[1:]
 
+
         x = self.center(head)
         for i, decoder_block in enumerate(self.blocks):
             skip = skips[i] if i < len(skips) else None
             x = decoder_block(x, skip)
+            # print("decoder: ", i, x.shape)
 
         return x

@@ -1,4 +1,6 @@
+import json
 import sys
+import time
 import torch
 from tqdm import tqdm as tqdm
 from .meter import AverageValueMeter
@@ -46,11 +48,17 @@ class Epoch:
             file=sys.stdout,
             disable=not (self.verbose),
         ) as iterator:
-            for x, y in iterator:
+            # import pdb; pdb.set_trace()
+            for step, (x, y) in enumerate(iterator):
+                ##RuntimeError: Input type (torch.cuda.DoubleTensor) 
+                ## and weight type (torch.cuda.FloatTensor) should be the same
+                x = x.float()
+                y = y.float()
                 x, y = x.to(self.device), y.to(self.device)
                 loss, y_pred = self.batch_update(x, y)
 
                 # update loss logs
+                # pdb.set_trace()
                 loss_value = loss.cpu().detach().numpy()
                 loss_meter.add(loss_value)
                 loss_logs = {self.loss.__name__: loss_meter.mean}
@@ -66,9 +74,66 @@ class Epoch:
                 if self.verbose:
                     s = self._format_logs(logs)
                     iterator.set_postfix_str(s)
+        return logs
+    
+    def custom_run(self, dataloader, epoch):
+        self.on_epoch_start()
+
+        # logs_ = {}
+        # logs_.update({"status": self.stage_name, "epoch": epoch})
+        logs = {}
+        loss_meter = AverageValueMeter()
+        metrics_meters = {metric.__name__: AverageValueMeter() for metric in self.metrics}
+
+        with tqdm(
+            dataloader,
+            desc=self.stage_name,
+            file=sys.stdout,
+            disable=not (self.verbose),
+        ) as iterator:
+            for step, (x, y) in enumerate(dataloader):
+                start = time.time()
+                ##RuntimeError: Input type (torch.cuda.DoubleTensor) 
+                ## and weight type (torch.cuda.FloatTensor) should be the same
+                x = x.float()
+                y = y.float()
+                x, y = x.to(self.device), y.to(self.device)
+                loss, y_pred = self.batch_update(x, y)
+
+                # update loss logs
+                # pdb.set_trace()
+                loss_value = loss.cpu().detach().numpy()
+                loss_meter.add(loss_value)
+                loss_logs = {self.loss.__name__: loss_meter.mean}
+                # logs_.update({"step": step})
+                # logs_.update(loss_logs)
+                logs.update(loss_logs)
+
+                # update metrics logs
+                for metric_fn in self.metrics:
+                    metric_value = metric_fn(y_pred, y).cpu().detach().numpy()
+                    metrics_meters[metric_fn.__name__].add(metric_value)
+                metrics_logs = {k: v.mean for k, v in metrics_meters.items()}
+                logs.update(metrics_logs)
+                # logs_.update(metrics_logs)
+
+                if self.verbose:
+                    s = self._format_logs(logs)
+                    iterator.set_postfix_str(s)
+                    # iterator.set_postfix_str(s, refresh=False)
+
+                # if step % 10 == 0:
+                #     # print(
+                #     #     "status: %6s, epoch: %4d/%4d, time: %.8f, loss: %.8f,"
+                #     #     % (self.stage_name, epoch, step, time.time() - start, loss_meter.value()[0])
+                #     # )
+                #     logs_info = json.dumps(logs_)
+                #     log_file = "D:\\project\\TrueHealth\\git\\segmentation_models.pytorch\\output\\logs\\0314.json"
+                #     with open(log_file, "a") as f:
+                #         print(logs_info, file=f)
 
         return logs
-
+    
 
 class TrainEpoch(Epoch):
     def __init__(self, model, loss, metrics, optimizer, device="cpu", verbose=True):
@@ -80,6 +145,7 @@ class TrainEpoch(Epoch):
             device=device,
             verbose=verbose,
         )
+        # import pdb; pdb.set_trace()
         self.optimizer = optimizer
 
     def on_epoch_start(self):

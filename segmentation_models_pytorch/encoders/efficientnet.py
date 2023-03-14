@@ -53,6 +53,7 @@ class EfficientNetEncoder(EfficientNet, EncoderMixin):
         ]
 
     def forward(self, x):
+        # import pdb; pdb.set_trace()
         stages = self.get_stages()
 
         block_number = 0.0
@@ -64,6 +65,7 @@ class EfficientNetEncoder(EfficientNet, EncoderMixin):
             # Identity and Sequential stages
             if i < 2:
                 x = stages[i](x)
+                # print("stage:", i, x.shape) ##debug
 
             # Block stages need drop_connect rate
             else:
@@ -71,9 +73,17 @@ class EfficientNetEncoder(EfficientNet, EncoderMixin):
                     drop_connect = drop_connect_rate * block_number / len(self._blocks)
                     block_number += 1.0
                     x = module(x, drop_connect)
+                # print("stage:", i, x.shape) ##debug
 
             features.append(x)
-
+            ### features.shape,感觉与keras过程不太相符
+            # stage: 0 torch.Size([10, 3, 256, 256])
+            # stage: 1 torch.Size([10, 48, 128, 128])
+            # stage: 2 torch.Size([10, 32, 64, 64])
+            # stage: 3 torch.Size([10, 56, 32, 32])
+            # stage: 4 torch.Size([10, 160, 16, 16])
+            # stage: 5 torch.Size([10, 448, 8, 8])
+        # import pdb; pdb.set_trace()
         return features
 
     def load_state_dict(self, state_dict, **kwargs):
@@ -145,6 +155,10 @@ efficient_net_encoders = {
         "params": {
             "out_channels": (3, 48, 32, 56, 160, 448),
             "stage_idxs": (6, 10, 22, 32),
+
+            ## need to debug the output of the efficientnet.
+            # "out_channels": (3, 24, 32, 56, 160, 1792),
+            # "stage_idxs": (2, 6, 10, 22),
             "model_name": "efficientnet-b4",
         },
     },

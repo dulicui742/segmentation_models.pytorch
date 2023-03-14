@@ -67,7 +67,7 @@ def get_encoder(name, in_channels=3, depth=5, weights=None, output_stride=32, **
     except KeyError:
         raise KeyError("Wrong encoder name `{}`, supported encoders: {}".format(name, list(encoders.keys())))
 
-    params = encoders[name]["params"]
+    params = encoders[name]["params"] ## stage_idxs, out_channels, model_name
     params.update(depth=depth)
     encoder = Encoder(**params)
 
