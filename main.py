@@ -1,4 +1,5 @@
 import os
+import time
 import torch 
 import numpy as np
 import torchvision.transforms as transforms
@@ -42,6 +43,7 @@ from segmentation_models_pytorch.utils.optimizers import(
 )
 from input_config import entrance
 
+
 def parse(kwargs):
     ## 处理配置参数
     for k, v in kwargs.items():
@@ -56,26 +58,31 @@ def parse(kwargs):
 def train(train_dataset, val_dataset, **kwargs):
     parse(kwargs)
 
-    ## load model
+    ## ===============define model================
+    tfmt = "%m%d"
     encoder_name= entrance["encoder_name"]
+    num_classes = len(entrance["label_map"])
     model = smp.Unet(
         encoder_name=encoder_name,  # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
         encoder_weights=None, # use `imagenet` pre-trained weights for encoder initialization
+        # in_channels=entrance["in_channels"], # model input channels (1 for gray-scale images, 3 for RGB, etc.)
+        # classes=num_classes,  # model output channels (number of classes in your dataset)
         in_channels=1, # model input channels (1 for gray-scale images, 3 for RGB, etc.)
-        classes=1,  # model output channels (number of classes in your dataset)
+        classes=1,
     )
 
+    ## ===============load pretrained model===============
     print("load model...!")
     pretrain_model_path = entrance["pretrained_modle"]
     if pretrain_model_path is not None:
         state_dict = torch.load(pretrain_model_path)
         model.load_state_dict(state_dict)
         print("load model")
-        initial_epoch = pretrain_model_path.split("_")[-1].split(".")[0]
+        initial_epoch = int(pretrain_model_path.split("_")[-1].split(".")[0])
     else:
        initial_epoch = 0 
 
-    ## dataloader
+    ## ================dataloader==================
     dataloader = torch.utils.data.DataLoader(
         train_dataset,
         entrance["batch_size"], ##batch_szie
@@ -93,12 +100,12 @@ def train(train_dataset, val_dataset, **kwargs):
         drop_last=False,
     )
 
+    ##=====================optimizer=================
     pre_loss = 100
     lr = entrance["lr"]
     weight_decay = entrance["weight_decay"]
     momentum = entrance["momentum"]
     eps = entrance["eps"]
-
     optimizers = {
         "sgd": get_sgd_optimizer(
             model, lr, momentum=momentum, weight_decay=weight_decay
@@ -112,13 +119,14 @@ def train(train_dataset, val_dataset, **kwargs):
     }
     optimizer = optimizers[entrance["optimizer_name"]]
 
+    ## ==================start to train===================
     print("----------start to train------------")
     criterion = BCELoss()
     metrics = [IoU(), Fscore(), Precision(), Recall(), Accuracy()]
     device = torch.device(entrance["device"] if torch.cuda.is_available() else "cpu")
-    train_obj = TrainEpoch(
+    train_epoch = TrainEpoch(
         model,
-        criterion,
+        criterion, #loss
         metrics,
         optimizer, ## optimizer
         device=device,
@@ -132,163 +140,73 @@ def train(train_dataset, val_dataset, **kwargs):
     )
     for epoch in range(initial_epoch, entrance["max_epoch"]):
         # import pdb; pdb.set_trace()
-        # logs = train_obj.run(dataloader)
-        logs = train_obj.custom_run(dataloader, epoch)
-        ## to save logs
-        import pdb; pdb.set_trace()
+        print('\nEpoch: {}'.format(epoch))
+        log_save_base_path = os.path.join(
+            entrance["save_base_path"],
+            entrance["log_folder"],
+            encoder_name
+        )
+        if not os.path.exists(log_save_base_path):
+            os.makedirs(log_save_base_path)
+
+        log_filename = os.path.join(
+            log_save_base_path,
+            "{}_logs_{}.json".format(encoder_name, time.strftime(tfmt))
+        )
+        # logs = train_epoch.run(dataloader)
+        train_logs = train_epoch.custom_run(dataloader, epoch, log_filename)
+
         ## to save model
-        save_path = os.path.join(
+        pth_save_base_path = os.path.join(
             entrance["save_base_path"], 
-            "{}_epoch_{}.pth".format(encoder_name, epoch))
-        torch.save(model.state_dict(), save_path)
+            entrance["pth_folder"],
+            encoder_name
+        )
+        if not os.path.exists(pth_save_base_path):
+            os.makedirs(pth_save_base_path)
+        pth_filename = os.path.join(
+            pth_save_base_path,
+            "{}_epoch_{}.pth".format(encoder_name, epoch)
+        )
+        torch.save(model.state_dict(), pth_filename)
 
         ## valid
-        val_logs = valid_obj.custom_run(val_dataloader, epoch)
+        valid_logs = valid_obj.custom_run(val_dataloader, epoch, log_filename)
 
+        # keras.callbacks.ReduceLROnPlateau
+        # torch.optim.lr_scheduler.ReduceLROnPlateau
+        # if loss_meter.value()[0] > pre_loss * 1.0:
+        if train_logs["bce_loss"] > pre_loss * 1.0:
+            old_lr = lr
+            lr = lr * entrance["lr_decay"]
+            print("lr decay called: from {} to {}" .format(old_lr, lr))
+            for param_group in optimizer.param_groups:
+                param_group["lr"] = lr
+        pre_loss = train_logs["bce_loss"] #loss_meter.value()[0]
+        if lr < entrance["min_lr"]:
+            break
 
 
 def main(entrance):
     train_dataset = SegDataset1(
-        base_path=entrance["train_base_path"], transform=None
+        base_path=entrance["train_base_path"],
+        height=entrance["middle_patch_size"],
+        width=entrance["middle_patch_size"],
+        windowlevel=entrance["windowlevel"],
+        windowwidth=entrance["windowwidth"],
+        transform=None
     )
     val_dataset = SegDataset1(
-        base_path=entrance["valid_base_path"], transform=None
+        base_path=entrance["valid_base_path"],
+        height=entrance["middle_patch_size"],
+        width=entrance["middle_patch_size"],
+        windowlevel=entrance["windowlevel"],
+        windowwidth=entrance["windowwidth"],
+        transform=None
     )
     train(train_dataset, val_dataset)
 
 
 if __name__ == "__main__":
     main(entrance)
-    # x = torch.FloatTensor(np.ones([10,3,256,256])).cuda()
-    # backbone= get_encoder("efficientnet-b4").cuda()
-
-    # import pdb; pdb.set_trace()
-    ## model
-    # model = smp.Unet(
-    #     encoder_name="efficientnet-b4",        # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
-    #     encoder_weights=None,     # use `imagenet` pre-trained weights for encoder initialization
-    #     in_channels=1,                  # model input channels (1 for gray-scale images, 3 for RGB, etc.)
-    #     classes=1,                      # model output channels (number of classes in your dataset)
-    # )
-    # # ff = model(x)
-    # # import pdb; pdb.set_trace()
-
-    # ## dataset
-    # print("create dataset for training set and validation set!")
-    # transform = transforms.Compose(
-    #             [
-    #                 # transforms.Resize((512, 512)),
-    #                 # transforms.RandomCrop((224, 224)),
-    #                 transforms.ToTensor(),  # 归一化到[0,1]
-    #                 # transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)) #归一化到[-1,1]
-    #                 ## channel = (channel-mean) / std(因为transforms.ToTensor()已经把数据处理成[0,1],那么(x-0.5)/0.5就是[-1.0, 1.0])
-    #                 ##这样一来，我们的数据中的每个值就变成了[-1,1]的数了。
-    #             ]
-    #         )
-    # dataset = SegDataset1(
-    #     # uid_file, ## "/Data/data10/dst/50_10_增强全部件/train.txt"
-    #     base_path="D:\\project\\TrueHealth\\20230217_Alg1\\data\\examples\\src_seg\\train", ## /Data/data10/dst/dicom/
-    #     # model_name,
-    #     # stl_names,
-    #     # transform=transform
-    # )
-    # dataloader = torch.utils.data.DataLoader(
-    #     dataset,
-    #     4, ##batch_szie
-    #     num_workers=8,
-    #     shuffle=True,
-    #     pin_memory=True,
-    #     drop_last=False,
-    # )
-
-
-    # val_dataset = SegDataset1(
-    #     # uid_file, ## "/Data/data10/dst/50_10_增强全部件/train.txt"
-    #     base_path="D:\\project\\TrueHealth\\20230217_Alg1\\data\\examples\\src_seg\\val", ## /Data/data10/dst/dicom/
-    #     # model_name,
-    #     # stl_names,
-    #     # transform=transform
-    # )
-    # val_dataloader = torch.utils.data.DataLoader(
-    #     val_dataset,
-    #     4, ##batch_szie
-    #     num_workers=8,
-    #     shuffle=False,
-    #     pin_memory=True,
-    #     drop_last=False,
-    # )
-
-    # # for ii, (dicom, label) in enumerate(dataloader):
-    # #     # pdb.set_trace()
-    # #     print("ii:", ii, dicom.shape, label.shape)
-    # #     if ii > 5:
-    # #         break
-
-    # ## optimizer
-    # initial_epoch = 0
-    # epochs = 3
-    # save_base_path = "D:\\project\\TrueHealth\\git\\segmentation_models.pytorch\\output\\pth"
-    
-    # weight_decay = 1e-5
-    # eps = 1e-8
-    # momentum = 0.9
-    # lr = 1e-4
-    # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    # opts = {
-    #     "sgd": get_sgd_optimizer(
-    #         # model, lr, weight_decay=1e-5
-    #         model, lr, momentum=momentum, weight_decay=weight_decay
-    #     ),
-    #     "rms": get_rms_optimizer(
-    #         # model, lr, momentum, weight_decay=1e-5
-    #         model, lr, momentum=momentum, weight_decay=weight_decay, eps=eps
-    #     ),
-    #     "adam": get_adam_optimizer(
-    #         # model, lr, alpha=0.9, momentum=0.9, weight_decay=1e-5, eps=1e-08
-    #         model, lr, weight_decay=weight_decay,
-    #     ),
-    # }
-
-    # ### loss
-    # import pdb; pdb.set_trace()
-    # # criterion = SoftBCEWithLogitsLoss(smooth_factor=0.1, ignore_index=-100)
-    # criterion = BCELoss()
-    # metrics = [IoU(), Fscore(), Precision(), Recall(), Accuracy()]
-    # train_obj = TrainEpoch(
-    #     model,
-    #     criterion,
-    #     metrics,
-    #     opts["adam"], ## optimizer
-    #     device=device,
-    # )
-
-    # valid_obj = ValidEpoch(
-    #     model,
-    #     criterion,
-    #     metrics,
-    #     device=device,
-    # )
-
-    # ## start to train
-    # ## load model params
-    # # if initial_epoch != 0:  # 如果有预训练模型则加载预训练模型
-    # #     state_dict = torch.load(pretrain_model_path)
-    # #     model.load_state_dict(state_dict)
-    # #     print("load model")
-
-    # for epoch in range(initial_epoch, epochs):
-    #     # import pdb; pdb.set_trace()
-    #     # logs = train_obj.run(dataloader)
-    #     logs = train_obj.custom_run(dataloader, epoch)
-    #     ## to save logs
-    #     # import pdb; pdb.set_trace()
-    #     ## to save model
-    #     save_path = os.path.join(save_base_path, "eunet_epoch{}.pth".format(epoch))
-    #     torch.save(model.state_dict(), save_path)
-
-    #     ## valid
-    #     val_logs = valid_obj.custom_run(val_dataloader, epoch)
-
-
-
     print("end")

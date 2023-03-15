@@ -144,8 +144,10 @@ class SegDataset1(Dataset):
         image = sitk.ReadImage(img_path)
         image = sitk.GetArrayFromImage(image)
         # print(image.shape)
-        image = ((image - self.windowlevel) / self.windowwidth + 0.5) * 255.0
-        # image.astype(np.float32)
+        # image = ((image - self.windowlevel) / self.windowwidth + 0.5) * 255.0
+        image = ((image - self.windowlevel) / self.windowwidth + 0.5)
+        image = np.clip(image, 0, 1) * 255.0
+        # image.astype("float32")
 
         ## deal with label
         mask = np.zeros((self.height, self.width, 1), dtype=float)
@@ -157,6 +159,7 @@ class SegDataset1(Dataset):
         tmp = tmp.reshape((self.height, self.width))
         mask[:, :, 0] = tmp
         mask = mask.transpose(2,0,1)
+        # mask.astype("float32")
         
         
         if self.transform:

@@ -76,11 +76,11 @@ class Epoch:
                     iterator.set_postfix_str(s)
         return logs
     
-    def custom_run(self, dataloader, epoch):
+    def custom_run(self, dataloader, epoch, log_file):
         self.on_epoch_start()
 
-        # logs_ = {}
-        # logs_.update({"status": self.stage_name, "epoch": epoch})
+        logs_ = {}
+        logs_.update({"status": self.stage_name, "epoch": epoch})
         logs = {}
         loss_meter = AverageValueMeter()
         metrics_meters = {metric.__name__: AverageValueMeter() for metric in self.metrics}
@@ -91,7 +91,7 @@ class Epoch:
             file=sys.stdout,
             disable=not (self.verbose),
         ) as iterator:
-            for step, (x, y) in enumerate(dataloader):
+            for step, (x, y) in enumerate(iterator):
                 start = time.time()
                 ##RuntimeError: Input type (torch.cuda.DoubleTensor) 
                 ## and weight type (torch.cuda.FloatTensor) should be the same
@@ -105,8 +105,8 @@ class Epoch:
                 loss_value = loss.cpu().detach().numpy()
                 loss_meter.add(loss_value)
                 loss_logs = {self.loss.__name__: loss_meter.mean}
-                # logs_.update({"step": step})
-                # logs_.update(loss_logs)
+                logs_.update({"step": step})
+                logs_.update(loss_logs)
                 logs.update(loss_logs)
 
                 # update metrics logs
@@ -115,24 +115,24 @@ class Epoch:
                     metrics_meters[metric_fn.__name__].add(metric_value)
                 metrics_logs = {k: v.mean for k, v in metrics_meters.items()}
                 logs.update(metrics_logs)
-                # logs_.update(metrics_logs)
+                logs_.update(metrics_logs)
 
                 if self.verbose:
                     s = self._format_logs(logs)
                     iterator.set_postfix_str(s)
                     # iterator.set_postfix_str(s, refresh=False)
 
-                # if step % 10 == 0:
-                #     # print(
-                #     #     "status: %6s, epoch: %4d/%4d, time: %.8f, loss: %.8f,"
-                #     #     % (self.stage_name, epoch, step, time.time() - start, loss_meter.value()[0])
-                #     # )
-                #     logs_info = json.dumps(logs_)
-                #     log_file = "D:\\project\\TrueHealth\\git\\segmentation_models.pytorch\\output\\logs\\0314.json"
-                #     with open(log_file, "a") as f:
-                #         print(logs_info, file=f)
+                if step % 10 == 0:
+                    # print(
+                    #     "status: %6s, epoch: %4d/%4d, time: %.8f, loss: %.8f,"
+                    #     % (self.stage_name, epoch, step, time.time() - start, loss_meter.value()[0])
+                    # )
+                    logs_info = json.dumps(logs_)
+                    # log_file = "D:\\project\\TrueHealth\\git\\segmentation_models.pytorch\\output\\logs\\0314.json"
+                    with open(log_file, "a") as f:
+                        print(logs_info, file=f)
 
-        return logs
+        return logs_
     
 
 class TrainEpoch(Epoch):

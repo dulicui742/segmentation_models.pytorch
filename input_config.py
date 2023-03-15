@@ -11,16 +11,21 @@ tfmt = "%m%d"
 entrance = {
     "label_map": str(
         {
-            "backgrund": 0,
+            # "backgrund": 0,
             "lung": 1,
         }
     ),
 
+    "windowlevel": -600,
+    "windowwidth": 2000,
+
     "train_base_path": "D:\\project\\TrueHealth\\20230217_Alg1\\data\\examples\\src_seg\\train",
     "valid_base_path": "D:\\project\\TrueHealth\\20230217_Alg1\\data\\examples\\src_seg\\val",
 
-    "encoder_name":"efficientnet-b4",
+    "encoder_name": "efficientnet-b4",
+    # "encoder_name": "mobileone_s4",
     "pretrained_modle": None,
+    # "pretrained_modle": ".\\output\pth\\efficientnet-b4_epoch_7.pth",
 
     # dataloader config
     "shuffle": True,  # 是否需要打乱数据
@@ -28,7 +33,8 @@ entrance = {
     "pin_memory": True,  # 数据从CPU->pin_memory—>GPU加速
 
     # model config
-    "epochs": 100,
+    "classes": ["lung"],
+    "in_channels": 1,  ## CT  slice 
     "batch_size": 4,
     "middle_patch_size": 512,
     "patch_size": 299,
@@ -54,7 +60,9 @@ entrance = {
 
     # output path
     "temp_time": time.strftime(tfmt),
-    "save_base_path": './output/pth',
+    "save_base_path": '.\\output',
+    "pth_folder": "pth",
+    "log_folder": "logs",
 
     # # log_name
     # "log_name": "log.txt"
