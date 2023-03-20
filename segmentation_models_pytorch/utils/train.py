@@ -122,7 +122,7 @@ class Epoch:
                     iterator.set_postfix_str(s)
                     # iterator.set_postfix_str(s, refresh=False)
 
-                if step % 10 == 0:
+                if step % 50 == 0:
                     # print(
                     #     "status: %6s, epoch: %4d/%4d, time: %.8f, loss: %.8f,"
                     #     % (self.stage_name, epoch, step, time.time() - start, loss_meter.value()[0])

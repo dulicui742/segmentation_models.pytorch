@@ -1,4 +1,6 @@
 import os
+import cv2
+import random
 import pandas as pd
 import torch
 import numpy as np
@@ -97,6 +99,7 @@ class SegDataset1(Dataset):
         # stl_names,
         height=512,
         width=512,
+        channels=1,
         windowlevel=-600,
         windowwidth=2000,
         transform=None,
@@ -116,6 +119,7 @@ class SegDataset1(Dataset):
         # self.stl_names = stl_names
         self.height = height
         self.width = width
+        self.channels = channels
         self.windowlevel = windowlevel
         self.windowwidth = windowwidth
 
@@ -144,9 +148,13 @@ class SegDataset1(Dataset):
         image = sitk.ReadImage(img_path)
         image = sitk.GetArrayFromImage(image)
         # print(image.shape)
-        # image = ((image - self.windowlevel) / self.windowwidth + 0.5) * 255.0
-        image = ((image - self.windowlevel) / self.windowwidth + 0.5)
-        image = np.clip(image, 0, 1) * 255.0
+        image = ((image - self.windowlevel) / self.windowwidth + 0.5) * 255.0
+        # image = ((image - self.windowlevel) / self.windowwidth + 0.5)
+        # image = np.clip(image, 0, 1) * 255.0
+        image = image.reshape((self.height, self.width, self.channels))
+        # image = np.ascontiguousarray(image)
+        # image = image.astype(np.uint8)
+        # image = image.copy()
         # image.astype("float32")
 
         ## deal with label
@@ -155,18 +163,43 @@ class SegDataset1(Dataset):
         # print("img:", img_path, "mask:", label_path)
         tmp = sitk.ReadImage(label_path)
         tmp = sitk.GetArrayFromImage(tmp)
-        # print(tmp.shape)
         tmp = tmp.reshape((self.height, self.width))
         mask[:, :, 0] = tmp
-        mask = mask.transpose(2,0,1)
+        # mask = mask.transpose(2,0,1)
         # mask.astype("float32")
         
+
+        ### 翻转的有问题？？？ 
+        ### Operate rotated Imust be applied to the HWC image, not the CHW image.
+        def _rotate(image, angle=90):
+            shape = image.shape
+            (h, w) = shape[:2]
+            center = (w // 2, h // 2)
+            M = cv2.getRotationMatrix2D(center, angle, 1.0)
+            rotated = cv2.warpAffine(image, M, (w, h))
+            rotated = rotated.reshape(shape)
+
+            # HWC-->CHW
+            rotated = rotated.transpose(2, 0, 1)
+            return rotated
+
+        angle = random.randint(0, 8) * 45
+        image = _rotate(image, angle)
+        mask = _rotate(mask, angle)
+
+        # if self.transform:
+        #     image = self.transform(image) ## 旋转，reshape，astype
+        #     # mask = self.transform(mask)
+        # if self.target_transform:
+        #     label = self.target_transform(label)
+
         
-        if self.transform:
-            image = self.transform(image) ## 旋转，reshape，astype
-            # mask = self.transform(mask)
-        if self.target_transform:
-            label = self.target_transform(label)
+        # if self.transform:
+        #     print("-----------------------")
+        #     transform_image_mask = self.transform(image=image, mask=mask)
+        #     print("++++++++++++")
+        #     image = transform_image_mask["image"]
+        #     mask = transform_image_mask["mask"]
 
         # import pdb; pdb.set_trace()
         # image = image.float()

@@ -2,6 +2,7 @@ import os
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
+import time
 import torch
 import numpy as np
 
@@ -43,7 +44,10 @@ def visualize(**images):
         plt.yticks([])
         plt.title(' '.join(name.split('_')).title())
         plt.imshow(image)
-    plt.show()
+    # plt.show()
+    # time.sleep(1)
+    # plt.close()
+    plt.pause(1)
 
 
 def test(test_dataset, **entrance):
@@ -83,7 +87,9 @@ def test(test_dataset, **entrance):
 
     # best_model.eval()
     # for i in range(len(test_dataset)): ##从28个slice开始有肺
-    for i in range(28, 40):
+    # for i in range(100, 120): #28, 40
+    for i in range(0, 291, 30):
+    # for i in range(30,34):
         n = i
         # n = np.random.choice(len(test_dataset))
         
@@ -106,7 +112,9 @@ def test(test_dataset, **entrance):
 if __name__ == "__main__":
     entrance = {
         "encoder_name": "efficientnet-b4",
-        "best_model": ".\\output\\pth\\efficientnet-b4\\efficientnet-b4_epoch_23.pth",
+        "best_model": ".\\output\\pth\\efficientnet-b4_noclip\\efficientnet-b4_epoch_23.pth",
+        # "best_model": ".\\output\\pth\\efficientnet-b4\\0316_174217\\efficientnet-b4_epoch_14.pth",
+        # "best_model": ".\\output\\pth\\efficientnet-b4\\0315_clip\\efficientnet-b4_epoch_23.pth",
         # "encoder_name": "mobileone_s4",
         # "best_model": ".\\output\\pth\\mobileone_s4\\mobileone_s4_epoch_8.pth",
         "device": "cuda:0",
@@ -114,6 +122,7 @@ if __name__ == "__main__":
         "windowlevel": -600,
         "windowwidth": 2000,
         "middle_patch_size": 512,
+        "in_channels": 1,
         "num_workers": 8,  # 多线程加载所需要的线程数目
         "pin_memory": True,  # 数据从CPU->pin_memory—>GPU加速
         "batch_size": 4,
@@ -124,6 +133,7 @@ if __name__ == "__main__":
         base_path=entrance["test_base_path"],
         height=entrance["middle_patch_size"],
         width=entrance["middle_patch_size"],
+        channels=entrance["in_channels"],
         windowlevel=entrance["windowlevel"],
         windowwidth=entrance["windowwidth"],
         transform=None

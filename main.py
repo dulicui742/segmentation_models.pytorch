@@ -2,6 +2,7 @@ import os
 import time
 import torch 
 import numpy as np
+import albumentations as A
 import torchvision.transforms as transforms
 
 import segmentation_models_pytorch as smp 
@@ -59,7 +60,7 @@ def train(train_dataset, val_dataset, **kwargs):
     parse(kwargs)
 
     ## ===============define model================
-    tfmt = "%m%d"
+    tfmt = "%m%d_%H%M%S" #"%m%d"
     encoder_name= entrance["encoder_name"]
     num_classes = len(entrance["label_map"])
     model = smp.Unet(
@@ -138,6 +139,8 @@ def train(train_dataset, val_dataset, **kwargs):
         metrics,
         device=device,
     )
+
+    timestamp = time.strftime(tfmt)
     for epoch in range(initial_epoch, entrance["max_epoch"]):
         # import pdb; pdb.set_trace()
         print('\nEpoch: {}'.format(epoch))
@@ -151,7 +154,7 @@ def train(train_dataset, val_dataset, **kwargs):
 
         log_filename = os.path.join(
             log_save_base_path,
-            "{}_logs_{}.json".format(encoder_name, time.strftime(tfmt))
+            "{}_logs_{}.json".format(encoder_name, timestamp)
         )
         # logs = train_epoch.run(dataloader)
         train_logs = train_epoch.custom_run(dataloader, epoch, log_filename)
@@ -160,7 +163,8 @@ def train(train_dataset, val_dataset, **kwargs):
         pth_save_base_path = os.path.join(
             entrance["save_base_path"], 
             entrance["pth_folder"],
-            encoder_name
+            encoder_name,
+            timestamp
         )
         if not os.path.exists(pth_save_base_path):
             os.makedirs(pth_save_base_path)
@@ -188,6 +192,43 @@ def train(train_dataset, val_dataset, **kwargs):
 
 
 def main(entrance):
+
+    # transfrom = transforms.Compose([
+    #     transforms.Affine(degrees=(0, 360)),
+    #     transforms.ConvertImageDtype(torch.float),
+    #     transforms.Normalize(entrance["windowlevel"], entrance["windowwidth"]),
+    #     transforms.ConvertImageDtype(torch.float),
+    # ])
+
+    # target_transform = transforms.Compose([
+    #     transforms.Affine(degrees=(0, 360)),
+    #     transforms.ConvertImageDtype(torch.float),
+    #     transforms.RandomErasing(),
+    # ])
+    # train_transform = A.Compose([
+    #     A.ShiftScaleRotate(shift_limit=0.2, scale_limit=0.2, rotate_limit=30, p=0.5),
+    #     A.Normalize(entrance["windowlevel"], entrance["windowwidth"]),
+    #     ToTensorV2(),
+    # ])
+
+    transform = A.Compose([
+        A.HorizontalFlip(p=0.5),
+        A.VerticalFlip(p=0.5),
+        A.OneOf([
+            # noise
+            # A.IAAAdditiveGaussianNoise(), 
+            A.GaussNoise(),
+        ], p=0.2),
+        A.OneOf([
+            # blur
+            A.MotionBlur(p=0.2),
+            A.MedianBlur(blur_limit=3, p=0.1),
+            A.Blur(blur_limit=3, p=0.1),
+        ], p=0.2),
+        A.ShiftScaleRotate(shift_limit=0.0625, scale_limit=0.2, rotate_limit=(0,360), p=0.2),
+        # A.RandomBrightnessContrast(p=0.2),   # 随机明亮对比度
+    ])
+    
     train_dataset = SegDataset1(
         base_path=entrance["train_base_path"],
         height=entrance["middle_patch_size"],
