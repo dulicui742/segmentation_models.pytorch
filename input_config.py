@@ -22,11 +22,15 @@ entrance = {
     "train_base_path": "D:\\project\\TrueHealth\\20230217_Alg1\\data\\examples\\src_seg\\train",
     "valid_base_path": "D:\\project\\TrueHealth\\20230217_Alg1\\data\\examples\\src_seg\\val",
 
-    "encoder_name": "efficientnet-b4",
+    # "encoder_name": "efficientnet-b4",
     # "encoder_name": "mobileone_s4",
-    "pretrained_modle": None,
-    # "pretrained_modle": ".\\output\pth\\efficientnet-b4_epoch_7.pth",
-
+    # "encoder_name": "resnext101_32x4d",
+    "encoder_name": "tu-regnety_040", #regnety_040
+    "decoder_name": "MANet", #"Unet", #
+    "pretrained_model": None,
+    # "pretrained_model": ".\\output\pth\\efficientnet-b4_epoch_7.pth",
+    # "pretrained_model": ".\\output\\pth\\resnext101_32x4d\\0321_092203\\resnext101_32x4d_epoch_30.pth",
+    # "pretrained_model": ".\\output\\pth\\tu-regnety_040_MANet\\0321_172201\\tu-regnety_040_MANet_epoch_0.pth",
     # dataloader config
     "shuffle": True,  # 是否需要打乱数据
     "num_workers": 8,  # 多线程加载所需要的线程数目

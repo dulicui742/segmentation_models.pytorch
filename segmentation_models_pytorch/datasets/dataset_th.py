@@ -106,6 +106,7 @@ class SegDataset1(Dataset):
         target_transform=None,
         image_folder_name="dicom",
         mask_folder_name="mask",
+        status=True, # True for training, False for test
     ):
         ## TO DO: 完成数据列表的统计，transform
         ## input：list_txt, 
@@ -125,6 +126,7 @@ class SegDataset1(Dataset):
 
         self.uids = os.listdir(base_path)
         self.image_labels = []
+        self.status = status
 
         # import pdb; pdb.set_trace()
         for uid in self.uids:
@@ -152,10 +154,6 @@ class SegDataset1(Dataset):
         # image = ((image - self.windowlevel) / self.windowwidth + 0.5)
         # image = np.clip(image, 0, 1) * 255.0
         image = image.reshape((self.height, self.width, self.channels))
-        # image = np.ascontiguousarray(image)
-        # image = image.astype(np.uint8)
-        # image = image.copy()
-        # image.astype("float32")
 
         ## deal with label
         mask = np.zeros((self.height, self.width, 1), dtype=float)
@@ -166,26 +164,26 @@ class SegDataset1(Dataset):
         tmp = tmp.reshape((self.height, self.width))
         mask[:, :, 0] = tmp
         # mask = mask.transpose(2,0,1)
-        # mask.astype("float32")
         
 
         ### 翻转的有问题？？？ 
         ### Operate rotated Imust be applied to the HWC image, not the CHW image.
-        def _rotate(image, angle=90):
-            shape = image.shape
-            (h, w) = shape[:2]
-            center = (w // 2, h // 2)
-            M = cv2.getRotationMatrix2D(center, angle, 1.0)
-            rotated = cv2.warpAffine(image, M, (w, h))
-            rotated = rotated.reshape(shape)
+        # def _rotate(image, angle=90):
+        #     shape = image.shape
+        #     (h, w) = shape[:2]
+        #     center = (w // 2, h // 2)
+        #     M = cv2.getRotationMatrix2D(center, angle, 1.0)
+        #     rotated = cv2.warpAffine(image, M, (w, h))
+        #     rotated = rotated.reshape(shape)
 
-            # HWC-->CHW
-            rotated = rotated.transpose(2, 0, 1)
-            return rotated
+        #     # HWC-->CHW
+        #     # rotated = rotated.transpose(2, 0, 1)
+        #     return rotated
 
-        angle = random.randint(0, 8) * 45
-        image = _rotate(image, angle)
-        mask = _rotate(mask, angle)
+        # if self.status:
+        #     angle = random.randint(0, 8) * 45
+        #     image = _rotate(image, angle)
+        #     mask = _rotate(mask, angle)
 
         # if self.transform:
         #     image = self.transform(image) ## 旋转，reshape，astype
@@ -194,15 +192,22 @@ class SegDataset1(Dataset):
         #     label = self.target_transform(label)
 
         
-        # if self.transform:
-        #     print("-----------------------")
-        #     transform_image_mask = self.transform(image=image, mask=mask)
-        #     print("++++++++++++")
-        #     image = transform_image_mask["image"]
-        #     mask = transform_image_mask["mask"]
+        if self.transform:
+            image = image.transpose(2,0,1).astype(np.uint8)
+            mask = mask.transpose(2,0,1).astype(np.uint8)
+            # print("-----------------------")
+            transform_image_mask = self.transform(image=image, mask=mask)
+            # print("++++++++++++")
+            image = transform_image_mask["image"]
+            mask = transform_image_mask["mask"]
+        else:
+            image = image.transpose(2,0,1)
+            mask = mask.transpose(2,0,1)
 
-        # import pdb; pdb.set_trace()
-        # image = image.float()
-        # mask = mask.float()
+        ##ValueError: At least one stride in the given numpy array is negative, 
+        # and tensors with negative strides are not currently supported. 
+        # (You can probably work around this by making a copy of your array  with array.copy().)
+        image = image.copy()
+        mask = mask.copy()
         # print(image.dtype, mask.shape)
         return image, mask

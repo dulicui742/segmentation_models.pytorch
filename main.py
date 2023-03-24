@@ -61,9 +61,19 @@ def train(train_dataset, val_dataset, **kwargs):
 
     ## ===============define model================
     tfmt = "%m%d_%H%M%S" #"%m%d"
-    encoder_name= entrance["encoder_name"]
+    encoder_name = entrance["encoder_name"]
+    decoder_name = entrance["decoder_name"]
     num_classes = len(entrance["label_map"])
-    model = smp.Unet(
+    # model = smp.Unet(
+    #     encoder_name=encoder_name,  # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
+    #     encoder_weights=None, # use `imagenet` pre-trained weights for encoder initialization
+    #     # in_channels=entrance["in_channels"], # model input channels (1 for gray-scale images, 3 for RGB, etc.)
+    #     # classes=num_classes,  # model output channels (number of classes in your dataset)
+    #     in_channels=1, # model input channels (1 for gray-scale images, 3 for RGB, etc.)
+    #     classes=1,
+    # )
+
+    model = smp.MAnet(
         encoder_name=encoder_name,  # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
         encoder_weights=None, # use `imagenet` pre-trained weights for encoder initialization
         # in_channels=entrance["in_channels"], # model input channels (1 for gray-scale images, 3 for RGB, etc.)
@@ -72,9 +82,10 @@ def train(train_dataset, val_dataset, **kwargs):
         classes=1,
     )
 
+    # import pdb; pdb.set_trace()
     ## ===============load pretrained model===============
     print("load model...!")
-    pretrain_model_path = entrance["pretrained_modle"]
+    pretrain_model_path = entrance["pretrained_model"]
     if pretrain_model_path is not None:
         state_dict = torch.load(pretrain_model_path)
         model.load_state_dict(state_dict)
@@ -147,14 +158,14 @@ def train(train_dataset, val_dataset, **kwargs):
         log_save_base_path = os.path.join(
             entrance["save_base_path"],
             entrance["log_folder"],
-            encoder_name
+            "{}_{}". format(encoder_name, decoder_name)
         )
         if not os.path.exists(log_save_base_path):
             os.makedirs(log_save_base_path)
 
         log_filename = os.path.join(
             log_save_base_path,
-            "{}_logs_{}.json".format(encoder_name, timestamp)
+            "{}_{}_logs_{}.json".format(encoder_name, decoder_name, timestamp)
         )
         # logs = train_epoch.run(dataloader)
         train_logs = train_epoch.custom_run(dataloader, epoch, log_filename)
@@ -163,15 +174,17 @@ def train(train_dataset, val_dataset, **kwargs):
         pth_save_base_path = os.path.join(
             entrance["save_base_path"], 
             entrance["pth_folder"],
-            encoder_name,
+            "{}_{}". format(encoder_name, decoder_name),
             timestamp
         )
         if not os.path.exists(pth_save_base_path):
             os.makedirs(pth_save_base_path)
         pth_filename = os.path.join(
             pth_save_base_path,
-            "{}_epoch_{}.pth".format(encoder_name, epoch)
+            "{}_{}_epoch_{}.pth".format(encoder_name, decoder_name, epoch)
         )
+
+        # import pdb; pdb.set_trace()
         torch.save(model.state_dict(), pth_filename)
 
         ## valid
@@ -221,11 +234,17 @@ def main(entrance):
         ], p=0.2),
         A.OneOf([
             # blur
-            A.MotionBlur(p=0.2),
+            # A.MotionBlur(p=0.2),
+            A.GaussianBlur(p=0.1),
             A.MedianBlur(blur_limit=3, p=0.1),
             A.Blur(blur_limit=3, p=0.1),
         ], p=0.2),
-        A.ShiftScaleRotate(shift_limit=0.0625, scale_limit=0.2, rotate_limit=(0,360), p=0.2),
+        A.OneOf([
+            A.ElasticTransform(alpha=120, sigma=120 * 0.05, alpha_affine=120 * 0.03),
+            A.GridDistortion(),
+            A.OpticalDistortion(distort_limit=2, shift_limit=0.5),
+        ], p=0.2),
+        A.ShiftScaleRotate(shift_limit=0.0625, scale_limit=0, rotate_limit=(0,360), p=0.2),
         # A.RandomBrightnessContrast(p=0.2),   # 随机明亮对比度
     ])
     
@@ -236,6 +255,7 @@ def main(entrance):
         windowlevel=entrance["windowlevel"],
         windowwidth=entrance["windowwidth"],
         transform=None
+        # transform=transform
     )
     val_dataset = SegDataset1(
         base_path=entrance["valid_base_path"],
@@ -244,6 +264,7 @@ def main(entrance):
         windowlevel=entrance["windowlevel"],
         windowwidth=entrance["windowwidth"],
         transform=None
+        # transform=transform
     )
     train(train_dataset, val_dataset)
 
