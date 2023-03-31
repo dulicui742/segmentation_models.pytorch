@@ -63,9 +63,15 @@ class NLLLoss(nn.NLLLoss, base.Loss):
 class BCELoss(nn.BCELoss, base.Loss):
     # pass
     def forward(self, y_pr, y_gt):
-        m = nn.Sigmoid()
-        loss = nn.BCELoss()
-        bce_loss = loss(m(y_pr), y_gt) #torch.autograd.Variable(y_gt)
+        # # torch.nn.functional.binary_cross_entropy 
+        # # and torch.nn.BCELoss are unsafe to autocast.
+        # m = nn.Sigmoid()
+        # loss = nn.BCELoss()
+        # bce_loss = loss(m(y_pr), y_gt) #torch.autograd.Variable(y_gt)
+        # return bce_loss
+
+        loss = nn.BCEWithLogitsLoss()
+        bce_loss = loss(y_pr, y_gt)
         return bce_loss
 
 

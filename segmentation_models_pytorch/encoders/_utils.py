@@ -12,8 +12,7 @@ def patch_first_conv(model, new_in_channels, default_in_channels=3, pretrained=T
     # get first conv
     for module in model.modules():
         if isinstance(module, nn.Conv2d) and module.in_channels == default_in_channels:
-            break
-
+            break    
     weight = module.weight.detach()
     module.in_channels = new_in_channels
 

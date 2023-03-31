@@ -13,6 +13,7 @@ class DecoderBlock(nn.Module):
         out_channels,
         use_batchnorm=True,
         attention_type=None,
+        # output_stride=32,
     ):
         super().__init__()
         self.conv1 = md.Conv2dReLU(
@@ -31,6 +32,7 @@ class DecoderBlock(nn.Module):
             use_batchnorm=use_batchnorm,
         )
         self.attention2 = md.Attention(attention_type, in_channels=out_channels)
+        # self.output_stride = output_stride
 
     def forward(self, x, skip=None):
         x = F.interpolate(x, scale_factor=2, mode="nearest")
@@ -73,6 +75,7 @@ class UnetDecoder(nn.Module):
         use_batchnorm=True,
         attention_type=None,
         center=False,
+        # output_stride=32,
     ):
         super().__init__()
 
@@ -101,6 +104,7 @@ class UnetDecoder(nn.Module):
 
         # combine decoder keyword arguments
         kwargs = dict(use_batchnorm=use_batchnorm, attention_type=attention_type)
+        # kwargs = dict(use_batchnorm=use_batchnorm, attention_type=attention_type, output_stride=output_stride)
         blocks = [
             DecoderBlock(in_ch, skip_ch, out_ch, **kwargs)
             for in_ch, skip_ch, out_ch in zip(in_channels, skip_channels, out_channels)
@@ -110,13 +114,18 @@ class UnetDecoder(nn.Module):
     def forward(self, *features):
 
         # import pdb; pdb.set_trace()
-        features = features[1:]  # remove first skip with same spatial resolution
+        features = features[1:]  # remove first skip with same spatial resolution (input)
         features = features[::-1]  # reverse channels to start from head of encoder
 
         head = features[0]
         skips = features[1:]
-
-
+        # head.shape: torch.Size([1, 448, 64, 64])
+        # [ skips.shape
+        # torch.Size([1, 160, 64, 64]), 
+        # torch.Size([1, 56, 64, 64]), 
+        # torch.Size([1, 32, 128, 128]), 
+        # torch.Size([1, 48, 256, 256])
+        # ]
         x = self.center(head)
         for i, decoder_block in enumerate(self.blocks):
             skip = skips[i] if i < len(skips) else None

@@ -41,7 +41,6 @@ class Epoch:
         logs = {}
         loss_meter = AverageValueMeter()
         metrics_meters = {metric.__name__: AverageValueMeter() for metric in self.metrics}
-
         with tqdm(
             dataloader,
             desc=self.stage_name,
@@ -84,7 +83,6 @@ class Epoch:
         logs = {}
         loss_meter = AverageValueMeter()
         metrics_meters = {metric.__name__: AverageValueMeter() for metric in self.metrics}
-
         with tqdm(
             dataloader,
             desc=self.stage_name,
@@ -92,7 +90,7 @@ class Epoch:
             disable=not (self.verbose),
         ) as iterator:
             for step, (x, y) in enumerate(iterator):
-                start = time.time()
+                # start = time.time()
                 ##RuntimeError: Input type (torch.cuda.DoubleTensor) 
                 ## and weight type (torch.cuda.FloatTensor) should be the same
                 x = x.float()
@@ -145,8 +143,8 @@ class TrainEpoch(Epoch):
             device=device,
             verbose=verbose,
         )
-        # import pdb; pdb.set_trace()
         self.optimizer = optimizer
+        # self.scaler = torch.cuda.amp.GradScaler() ##混合精度
 
     def on_epoch_start(self):
         self.model.train()
@@ -157,6 +155,17 @@ class TrainEpoch(Epoch):
         loss = self.loss(prediction, y)
         loss.backward()
         self.optimizer.step()
+
+        # with torch.cuda.amp.autocast():
+        #     loss = self.loss(prediction, y)
+        # # Scales the loss, and calls backward() to create scaled gradients
+        # self.scaler.scale(loss).backward()
+
+        # # Unscales gradients and calls or skips optimizer.step()
+        # self.scaler.step(self.optimizer)
+        # #Updates the scale for next iteration
+        # self.scaler.update()
+
         return loss, prediction
 
 

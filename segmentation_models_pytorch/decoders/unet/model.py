@@ -65,15 +65,16 @@ class Unet(SegmentationModel):
         classes: int = 1,
         activation: Optional[Union[str, callable]] = None,
         aux_params: Optional[dict] = None,
+        # output_stride: int = 32,
     ):
         super().__init__()
 
-        # import pdb; pdb.set_trace()
         self.encoder = get_encoder(
             encoder_name,
             in_channels=in_channels,
             depth=encoder_depth,
             weights=encoder_weights,
+            # output_stride=output_stride,
         )
 
         self.decoder = UnetDecoder(
@@ -83,6 +84,7 @@ class Unet(SegmentationModel):
             use_batchnorm=decoder_use_batchnorm,
             center=True if encoder_name.startswith("vgg") else False,
             attention_type=decoder_attention_type,
+            # output_stride=self.encoder.output_stride
         )
 
         self.segmentation_head = SegmentationHead(

@@ -21,6 +21,7 @@ from .timm_mobilenetv3 import timm_mobilenetv3_encoders
 from .timm_gernet import timm_gernet_encoders
 from .mix_transformer import mix_transformer_encoders
 from .mobileone import mobileone_encoders
+from .stdc import stdc_encoders
 
 from .timm_universal import TimmUniversalEncoder
 
@@ -46,6 +47,7 @@ encoders.update(timm_mobilenetv3_encoders)
 encoders.update(timm_gernet_encoders)
 encoders.update(mix_transformer_encoders)
 encoders.update(mobileone_encoders)
+encoders.update(stdc_encoders)
 
 
 def get_encoder(name, in_channels=3, depth=5, weights=None, output_stride=32, **kwargs):
@@ -86,6 +88,7 @@ def get_encoder(name, in_channels=3, depth=5, weights=None, output_stride=32, **
 
     encoder.set_in_channels(in_channels, pretrained=weights is not None)
     if output_stride != 32:
+        print("--------------dialated started!-----------")
         encoder.make_dilated(output_stride)
 
     return encoder

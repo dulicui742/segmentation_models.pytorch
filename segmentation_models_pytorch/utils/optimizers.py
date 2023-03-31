@@ -17,6 +17,18 @@ def get_adam_optimizer(model, lr, weight_decay=1e-5):
     return optimizer
 
 
+def get_adamW_optimizer(model, lr, weight_decay=1e-5):
+    parameters = model.parameters()
+    optimizer = torch.optim.AdamW(
+        filter(lambda p: p.requires_grad, parameters),
+        lr=lr,
+        weight_decay=weight_decay,
+        # betas=(0.9, 0.999),
+        betas=(0.9, 0.99), # same with keras
+    )
+    return optimizer
+
+
 # def get_yellow(model, lr):
 #     return YFOptimizer(
 #         filter(lambda p: p.requires_grad, model.parameters()), weight_decay=1e-4

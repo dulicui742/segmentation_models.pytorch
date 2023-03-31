@@ -16,8 +16,10 @@ entrance = {
         }
     ),
 
-    "windowlevel": -600,
-    "windowwidth": 2000,
+    # "windowlevel": -600,
+    # "windowwidth": 2000,
+    "windowlevel": -850,
+    "windowwidth": 310,
 
     "train_base_path": "D:\\project\\TrueHealth\\20230217_Alg1\\data\\examples\\src_seg\\train",
     "valid_base_path": "D:\\project\\TrueHealth\\20230217_Alg1\\data\\examples\\src_seg\\val",
@@ -25,26 +27,29 @@ entrance = {
     # "encoder_name": "efficientnet-b4",
     # "encoder_name": "mobileone_s4",
     # "encoder_name": "resnext101_32x4d",
-    "encoder_name": "tu-regnety_040", #regnety_040
-    "decoder_name": "MANet", #"Unet", #
+    # "encoder_name": "tu-regnety_040", #regnety_040
+    "encoder_name": "stdc2",
+    "decoder_name": "Unet", #"MANet", #
+    "stragety": "clip-rotated",
     "pretrained_model": None,
     # "pretrained_model": ".\\output\pth\\efficientnet-b4_epoch_7.pth",
     # "pretrained_model": ".\\output\\pth\\resnext101_32x4d\\0321_092203\\resnext101_32x4d_epoch_30.pth",
     # "pretrained_model": ".\\output\\pth\\tu-regnety_040_MANet\\0321_172201\\tu-regnety_040_MANet_epoch_0.pth",
     # dataloader config
     "shuffle": True,  # 是否需要打乱数据
-    "num_workers": 8,  # 多线程加载所需要的线程数目
+    "num_workers": 4,  # 多线程加载所需要的线程数目
     "pin_memory": True,  # 数据从CPU->pin_memory—>GPU加速
 
     # model config
-    "classes": ["lung"],
+    "classes": ["zhiqiguan"], #["lung"], #
+    "output_stride": 32,
     "in_channels": 1,  ## CT  slice 
-    "batch_size": 4,
+    "batch_size": 16,
     "middle_patch_size": 512,
     "patch_size": 299,
     "plot_every": 50,
 
-    "optimizer_name": "adam",
+    "optimizer_name": "adamw",#"adam",
     "weight_decay": 0, # 
     "eps": 1e-8,
 

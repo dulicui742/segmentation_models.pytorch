@@ -40,7 +40,8 @@ from segmentation_models_pytorch.utils.optimizers import(
     get_adam_optimizer,
     # get_yellow,
     get_sgd_optimizer,
-    get_rms_optimizer
+    get_rms_optimizer,
+    get_adamW_optimizer,
 )
 from input_config import entrance
 
@@ -56,33 +57,25 @@ def parse(kwargs):
             print(k, getattr(entrance, k))
 
 
-def train(train_dataset, val_dataset, **kwargs):
-    parse(kwargs)
-
+def train(train_dataset, val_dataset, **entrance):
     ## ===============define model================
     tfmt = "%m%d_%H%M%S" #"%m%d"
     encoder_name = entrance["encoder_name"]
     decoder_name = entrance["decoder_name"]
+    stragety = entrance["stragety"]
+    output_stride = entrance["output_stride"]
     num_classes = len(entrance["label_map"])
-    # model = smp.Unet(
-    #     encoder_name=encoder_name,  # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
-    #     encoder_weights=None, # use `imagenet` pre-trained weights for encoder initialization
-    #     # in_channels=entrance["in_channels"], # model input channels (1 for gray-scale images, 3 for RGB, etc.)
-    #     # classes=num_classes,  # model output channels (number of classes in your dataset)
-    #     in_channels=1, # model input channels (1 for gray-scale images, 3 for RGB, etc.)
-    #     classes=1,
-    # )
-
-    model = smp.MAnet(
+    model = smp.Unet(
+    # model = smp.MAnet(
         encoder_name=encoder_name,  # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
         encoder_weights=None, # use `imagenet` pre-trained weights for encoder initialization
         # in_channels=entrance["in_channels"], # model input channels (1 for gray-scale images, 3 for RGB, etc.)
         # classes=num_classes,  # model output channels (number of classes in your dataset)
         in_channels=1, # model input channels (1 for gray-scale images, 3 for RGB, etc.)
         classes=1,
+        # output_stride=output_stride,
     )
 
-    # import pdb; pdb.set_trace()
     ## ===============load pretrained model===============
     print("load model...!")
     pretrain_model_path = entrance["pretrained_model"]
@@ -128,6 +121,9 @@ def train(train_dataset, val_dataset, **kwargs):
         "adam": get_adam_optimizer(
             model, lr, weight_decay=weight_decay,
         ),
+        "adamw": get_adamW_optimizer(
+            model, lr, weight_decay=weight_decay,
+        )
     }
     optimizer = optimizers[entrance["optimizer_name"]]
 
@@ -153,19 +149,18 @@ def train(train_dataset, val_dataset, **kwargs):
 
     timestamp = time.strftime(tfmt)
     for epoch in range(initial_epoch, entrance["max_epoch"]):
-        # import pdb; pdb.set_trace()
         print('\nEpoch: {}'.format(epoch))
         log_save_base_path = os.path.join(
             entrance["save_base_path"],
             entrance["log_folder"],
-            "{}_{}". format(encoder_name, decoder_name)
+            "{}_{}_{}". format(encoder_name, decoder_name, stragety)
         )
         if not os.path.exists(log_save_base_path):
             os.makedirs(log_save_base_path)
 
         log_filename = os.path.join(
             log_save_base_path,
-            "{}_{}_logs_{}.json".format(encoder_name, decoder_name, timestamp)
+            "{}_{}_{}_logs_{}.json".format(encoder_name, decoder_name, stragety, timestamp)
         )
         # logs = train_epoch.run(dataloader)
         train_logs = train_epoch.custom_run(dataloader, epoch, log_filename)
@@ -174,14 +169,14 @@ def train(train_dataset, val_dataset, **kwargs):
         pth_save_base_path = os.path.join(
             entrance["save_base_path"], 
             entrance["pth_folder"],
-            "{}_{}". format(encoder_name, decoder_name),
+            "{}_{}_{}". format(encoder_name, decoder_name, stragety),
             timestamp
         )
         if not os.path.exists(pth_save_base_path):
             os.makedirs(pth_save_base_path)
         pth_filename = os.path.join(
             pth_save_base_path,
-            "{}_{}_epoch_{}.pth".format(encoder_name, decoder_name, epoch)
+            "{}_{}_{}_epoch_{}.pth".format(encoder_name, decoder_name, stragety, epoch)
         )
 
         # import pdb; pdb.set_trace()
@@ -266,7 +261,7 @@ def main(entrance):
         transform=None
         # transform=transform
     )
-    train(train_dataset, val_dataset)
+    train(train_dataset, val_dataset, **entrance)
 
 
 if __name__ == "__main__":

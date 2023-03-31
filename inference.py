@@ -97,10 +97,9 @@ def test(test_dataset, **entrance):
     model_time = time.time()
  
     # evaluate model on test set
-    # for i in range(len(test_dataset)): ##从28个slice开始有肺
-    # for i in range(100, 120): #28, 40
-    for i in range(28, 291, 15):
-    # for i in [68, 138]:
+    random.seed(1)
+    index = random.sample(range(0, len(test_dataset)), 20)
+    for i in index:
         n = i
         # n = np.random.choice(len(test_dataset))
         image, gt_mask = test_dataset[n]
@@ -143,22 +142,20 @@ def generate_stl(**entrance):
     dimensions = output.GetDimensions()
     print("dimension:", dimensions)
 
-    # import pdb; pdb.set_trace()
     dicomArray = numpy_support.vtk_to_numpy(output.GetPointData().GetScalars())
     dicomArray = dicomArray.reshape(dimensions[::-1]).astype(np.float32)
     copyArray = dicomArray * 0
 
-    # import pdb; pdb.set_trace()
     for i in range(dimensions[2]):
-        img = dicomArray[i, ::-1, :]  # slice
-        img = ((img - windowlevel) / windowwidth + 0.5) * 255
+        img = dicomArray[i, ::-1, :] 
+        img = (img - windowlevel) / windowwidth + 0.5
+        img = np.clip(img, 0, 1) * 255
         # cv2.imshow("img", img/255)
         # params = {"image": img}
         # visualize(**params)
         img = img.reshape((1, dimensions[1], dimensions[0]))
         x_tensor = torch.from_numpy(img).to(device).unsqueeze(0).float()
         preds = best_model.predict(x_tensor)  # 预测图
-        # preds = preds.permute(0, 2, 3, 1).cpu()
         # preds = torch.sigmoid(preds)
         (n, c, h, w) = preds.shape
         # preds = (preds.squeeze().cpu().numpy().round()) ## shape: 512 * 512
@@ -266,10 +263,12 @@ if __name__ == "__main__":
         "encoder_name": "efficientnet-b4",
         # "best_model": ".\\output\\pth\\efficientnet-b4_noclip\\efficientnet-b4_epoch_23.pth",
         # "best_model": ".\\output\\pth\\efficientnet-b4\\0316_174217\\efficientnet-b4_epoch_14.pth",
-        # "best_model": ".\\output\\pth\\efficientnet-b4\\0315_clip\\efficientnet-b4_epoch_23.pth",
-        "best_model": ".\\output\\pth\\efficientnet-b4\\0320_133848\\efficientnet-b4_epoch_24.pth",
+        "best_model": ".\\output\\pth\\efficientnet-b4\\0315_clip\\efficientnet-b4_epoch_23.pth",
+        # "best_model": ".\\output\\pth\\efficientnet-b4\\0320_133848\\efficientnet-b4_epoch_24.pth",
         # "best_model": ".\\output\\pth\\efficientnet-b4_MANet\\0321_142242\\efficientnet-b4_epoch_30.pth",
         # "encoder_name": "tu-regnety_040",
+        # "best_model": ".\\output\pth\\tu-regnety_040_MANet_rotated\\0329_182350\\tu-regnety_040_MANet_rotated_epoch_70.pth",
+        # "best_model": "D:\share\efficientnet-b4_MANet_epoch_56.pth", 
         # # "best_model": ".\\output\\pth\\tu-regnety_040_MANet\\0321_173313\\tu-regnety_040_MANet_epoch_35.pth",
         # "best_model": ".\\output\\pth\\tu-regnety_040_MANet\\0323_183024\\tu-regnety_040_MANet_epoch_35.pth",
         # "encoder_name": "resnext101_32x4d",
@@ -278,12 +277,17 @@ if __name__ == "__main__":
         # # "best_model": ".\\output\\pth\\mobileone_s4_Unet\\mobileone_s4_epoch_33.pth",
         # "best_model": ".\\output\\pth\\mobileone_s4_Unet\\0322_183333\\mobileone_s4_Unet_epoch_50.pth",
         
+        # "encoder_name": "stdc2",
+        # "best_model": ".\\output\\pth\\stdc2_Unet_clip-rotated\\0331_144655\\stdc2_Unet_clip-rotated_epoch_11.pth",
+
         "decoder_name": "MANet", #"Unet", #
         "device": "cuda:0",
-        "test_base_path": "D:\\project\\TrueHealth\\20230217_Alg1\\data\\examples\\src_seg\\val",
+        "test_base_path": "D:\\project\\TrueHealth\\20230217_Alg1\\data\\examples\\src_seg\\train",
         "image_path": "D:\\project\\TrueHealth\\20230217_Alg1\\data\\examples\\src_seg\\val\\20170831-000005\\dicom",
-        "windowlevel": -600,
-        "windowwidth": 2000,
+        # "windowlevel": -600,
+        # "windowwidth": 2000,
+        "windowlevel": -850,
+        "windowwidth": 310,
         "middle_patch_size": 512,
         "classes": ["lung"],
         "in_channels": 1,
