@@ -57,7 +57,7 @@ class SegDataset(Dataset):
             for filename in os.listdir(os.path.join(image_base_path, uid)):
                 self.image_labels.append(os.path.join(uid, filename))
         # self.image_labels = self.image_labels[:50] ##debug
-        print("uids:", len(self.uids), "image_label:", len(self.image_labels))
+        print("uids:", len(uids), "image_label:", len(self.image_labels))
 
     def __len__(self):
         return len(self.image_labels)
@@ -114,9 +114,7 @@ class SegDataset(Dataset):
         if self.transform:
             image = image.transpose(2, 0, 1).astype(np.uint8)
             mask = mask.transpose(2, 0, 1).astype(np.uint8)
-            # print("-----------------------")
             transform_image_mask = self.transform(image=image, mask=mask)
-            # print("++++++++++++")
             image = transform_image_mask["image"]
             mask = transform_image_mask["mask"]
         else:
@@ -137,7 +135,7 @@ class SegDataset1(Dataset):
         # uid_file, ## "/Data/data10/dst/50_10_增强全部件/train.txt"
         base_path, ## /Data/data10/dst/dicom/
         # model_name,
-        # stl_names,
+        stl_names=["lung"],
         height=512,
         width=512,
         channels=1,
@@ -158,12 +156,16 @@ class SegDataset1(Dataset):
         self.mask_folder_name = mask_folder_name
         self.transform = transform
         self.target_transform = target_transform
-        # self.stl_names = stl_names
+        self.stl_names = stl_names
+        self.num_classes = len(stl_names)
         self.height = height
         self.width = width
         self.channels = channels
         self.windowlevel = windowlevel
         self.windowwidth = windowwidth
+
+        self.min_bound = windowlevel - windowwidth // 2  
+        self.max_bound = windowlevel + windowwidth // 2
 
         self.uids = os.listdir(base_path)
         self.image_labels = []
@@ -173,12 +175,13 @@ class SegDataset1(Dataset):
             self.image_path = os.path.join(base_path, uid, image_folder_name)
             image_names = os.listdir(self.image_path)
 
-            # self.mask_path = os.path.join(base_path, uid, mask_folder_name, "fei")
-            self.mask_path = os.path.join(base_path, uid, mask_folder_name, "zhiqiguan")
+            self.mask_path = os.path.join(base_path, uid, mask_folder_name, "lung")
             mask_names = os.listdir(self.mask_path)
             for imagen, maskn in zip(image_names, mask_names):
                 self.image_labels.append([os.path.join(self.image_path, imagen), 
-                os.path.join(self.mask_path, maskn)])  
+                # os.path.join(self.mask_path, maskn)
+                maskn  ## 只保存maskname
+                ]) 
         print("uids:", len(self.uids), "image_label:", len(self.image_labels))
 
 
@@ -187,24 +190,40 @@ class SegDataset1(Dataset):
 
     def __getitem__(self, idx):
         ## deal with image
-        img_path = self.image_labels[idx][0]
+        img_path = os.path.join(
+            self.base_path,
+            self.image_labels[idx][0]
+        )
         image = sitk.ReadImage(img_path)
         image = sitk.GetArrayFromImage(image)
-        # print(image.shape)
+        ## method1
         # image = ((image - self.windowlevel) / self.windowwidth + 0.5) * 255.0
+
+        ## method2
         image = ((image - self.windowlevel) / self.windowwidth + 0.5)
         image = np.clip(image, 0, 1) * 255.0
+
+        # ## method3
+        # image = (image - self.min_bound) / (self.max_bound - self.min_bound)
+        # image = np.clip(image, 0, 1)
+
         image = image.reshape((self.height, self.width, self.channels))
 
         ## deal with label
-        mask = np.zeros((self.height, self.width, 1), dtype=float)
-        label_path = self.image_labels[idx][1]
-        # print("img:", img_path, "mask:", label_path)
-        tmp = sitk.ReadImage(label_path)
-        tmp = sitk.GetArrayFromImage(tmp)
-        tmp = tmp.reshape((self.height, self.width))
-        mask[:, :, 0] = tmp
-        # mask = mask.transpose(2,0,1) 
+        mask = np.zeros((self.height, self.width, self.num_classes), dtype=float)
+        for index, stl_name in enumerate(self.stl_names):
+            cur_uid = img_path.split('\\')[-3]
+            label_path = os.path.join(
+                self.base_path, 
+                cur_uid,
+                self.mask_folder_name, 
+                stl_name, 
+                self.image_labels[idx][1]
+            )
+            tmp = sitk.ReadImage(label_path)
+            tmp = sitk.GetArrayFromImage(tmp)
+            tmp = tmp.reshape((self.height, self.width))
+            mask[:, :, index] = tmp 
 
         if self.status:
             ### Operate rotated Imust be applied to the HWC image, not the CHW image.
@@ -233,9 +252,7 @@ class SegDataset1(Dataset):
         if self.transform:
             image = image.transpose(2,0,1).astype(np.uint8)
             mask = mask.transpose(2,0,1).astype(np.uint8)
-            # print("-----------------------")
             transform_image_mask = self.transform(image=image, mask=mask)
-            # print("++++++++++++")
             image = transform_image_mask["image"]
             mask = transform_image_mask["mask"]
         else:
@@ -247,5 +264,4 @@ class SegDataset1(Dataset):
         # (You can probably work around this by making a copy of your array  with array.copy().)
         image = image.copy()
         mask = mask.copy()
-        # print(image.dtype, mask.shape)
         return image, mask

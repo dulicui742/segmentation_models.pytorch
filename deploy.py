@@ -25,18 +25,21 @@ from segmentation_models_pytorch.utils.train import(
     Epoch, TrainEpoch, ValidEpoch
 )
 
-def visualize(**images):
-    """PLot images in one row."""
-    n = len(images)
+
+def visualize(images):
+    rows = len(images)
+    n = 3 ## image, gt, pred
     plt.figure(figsize=(16, 5))
-    for i, (name, image) in enumerate(images.items()):
-        plt.subplot(1, n, i + 1)
-        plt.xticks([])
-        plt.yticks([])
-        plt.title(' '.join(name.split('_')).title())
-        plt.imshow(image, cmap=plt.cm.gray)
+
+    for j in range(rows):
+        for i, (name, image) in enumerate(images[j].items()):
+            plt.subplot(rows, n, j * n + i + 1)
+            plt.xticks([])
+            plt.yticks([])
+            plt.title(' '.join(name.split('_')).title())
+            plt.imshow(image, cmap=plt.cm.gray)
     # plt.show()
-    plt.pause(2)
+    plt.pause(1)
 
 
 def load_model(encoder_name, model_path, device, in_channels=1, classes=1):
@@ -105,23 +108,25 @@ def test(test_dataset, **entrance):
     best_model = torch.jit.load(pt_name)
 
     index = random.sample(range(30, len(test_dataset)), 20)
-    # import pdb; pdb.set_trace()
     for i in index:
         n = i
         image, gt_mask = test_dataset[n]
-        
-        gt_mask = gt_mask.squeeze()
+        # gt_mask = gt_mask.squeeze()
         
         x_tensor = torch.from_numpy(image).to(device).unsqueeze(0).float()
-        # pr_mask = best_model.predict(x_tensor)
         pr_mask = best_model(x_tensor)  ## call model.forward()
 
         pr_mask = torch.sigmoid(pr_mask)
-        pr_mask = (pr_mask.squeeze().cpu().detach().numpy())
+        pr_mask = (pr_mask.squeeze(0).cpu().detach().numpy())
 
         image = image.squeeze().astype(np.uint8) 
-        params = {"image": image, "ground_truth_mask": gt_mask, "predicted_mask": pr_mask}
-        visualize(**params)
+        params = []
+        for i in range(len(classes)):
+            params.append({
+                "image": image, 
+                "gt_{}" .format(classes[i]): gt_mask[i,:,:], 
+                "pred_{}" .format(classes[i]): pr_mask[i,:,:]})
+        visualize(params)
 
 
 if __name__ == "__main__":

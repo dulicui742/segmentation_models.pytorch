@@ -6,6 +6,8 @@ import time
 import torch
 import numpy as np
 import vtk
+import random
+import hiddenlayer as h
 
 from vtk.util import numpy_support
 
@@ -40,18 +42,34 @@ from segmentation_models_pytorch.utils.metrics import(
 
 
 # helper function for data visualization
-def visualize(**images):
-    """PLot images in one row."""
-    n = len(images)
-    plt.figure(figsize=(16, 5))
-    for i, (name, image) in enumerate(images.items()):
-        plt.subplot(1, n, i + 1)
-        plt.xticks([])
-        plt.yticks([])
-        plt.title(' '.join(name.split('_')).title())
-        plt.imshow(image, cmap=plt.cm.gray)
+# def visualize(**images):
+    # """PLot images in one row."""
+    # n = len(images)
+    # plt.figure(figsize=(16, 5))
+    # for i, (name, image) in enumerate(images.items()):
+    #     plt.subplot(1, n, i + 1)
+    #     plt.xticks([])
+    #     plt.yticks([])
+    #     plt.title(' '.join(name.split('_')).title())
+    #     plt.imshow(image, cmap=plt.cm.gray)
     # plt.show()
-    plt.pause(1)
+    # plt.pause(1)
+
+
+def visualize(images):
+    rows = len(images)
+    n = 3 ## image, gt, pred
+    plt.figure(figsize=(16, 5))
+
+    for j in range(rows):
+        for i, (name, image) in enumerate(images[j].items()):
+            plt.subplot(rows, n, j * n + i + 1)
+            plt.xticks([])
+            plt.yticks([])
+            plt.title(' '.join(name.split('_')).title())
+            plt.imshow(image, cmap=plt.cm.gray)
+    plt.show()
+    # plt.pause(1)
 
 
 def load_model(encoder_name, model_path, device, in_channels=1, classes=1):
@@ -70,6 +88,29 @@ def load_model(encoder_name, model_path, device, in_channels=1, classes=1):
     return model
 
 
+def vis_model_graph(model, **entrance):
+    batch_size = entrance["batch_size"]
+    height = entrance["middle_patch_size"]
+    width = entrance["middle_patch_size"]
+    device = entrance["device"]
+    encoder_name = entrance["encoder_name"]
+    decoder_name = entrance["decoder_name"]
+
+    x = torch.zeros([batch_size, 1, height, width]).float().to(device)
+
+    model_decoder = model.decoder
+    model_encoder = model.encoder
+
+    vis_graph = h.build_graph(model_encoder, x)   # 获取绘制图像的对象
+    vis_graph.theme = h.graph.THEMES["blue"].copy()     # 指定主题颜色
+    
+    graph_base_path = os.path.join(".\\output", "graph")
+    if not os.path.exists(graph_base_path):
+        os.makedirs(graph_base_path)
+    graph_name = os.path.join(graph_base_path, "{}_{}_encoder.png" .format(encoder_name, decoder_name))
+    vis_graph.save(graph_name)   # 保存图像的路径
+
+
 def test(test_dataset, **entrance):
     start_time = time.time()
     test_dataloader = torch.utils.data.DataLoader(
@@ -84,7 +125,9 @@ def test(test_dataset, **entrance):
     encoder_name = entrance["encoder_name"]
     device = torch.device(entrance["device"] if torch.cuda.is_available() else "cpu")
     model_path = entrance["best_model"]
-    model = load_model(encoder_name, model_path, device, in_channels=1, classes=1)
+    classes = entrance["classes"]
+    num_classes = len(classes)
+    model = load_model(encoder_name, model_path, device, in_channels=1, classes=num_classes)
 
     ### re-parameterizable
     if  "mobileone" in encoder_name:
@@ -95,28 +138,33 @@ def test(test_dataset, **entrance):
         best_model = model
 
     model_time = time.time()
- 
+
+    # if entrance["vis_graph"]:
+    #     vis_model_graph(model, **entrance)
+    
     # evaluate model on test set
     random.seed(1)
     index = random.sample(range(0, len(test_dataset)), 20)
     for i in index:
         n = i
-        # n = np.random.choice(len(test_dataset))
         image, gt_mask = test_dataset[n]
-        
-        gt_mask = gt_mask.squeeze()
+        # gt_mask = gt_mask.squeeze()
         
         x_tensor = torch.from_numpy(image).to(device).unsqueeze(0).float()
         pr_mask = best_model.predict(x_tensor)
 
         pr_mask = torch.sigmoid(pr_mask)
-        pr_mask = (pr_mask.squeeze().cpu().numpy().round())
+        pr_mask = (pr_mask.squeeze(0).cpu().numpy().round())
 
         image = image.squeeze().astype(np.uint8) 
-        params = {"image": image, "ground_truth_mask": gt_mask, "predicted_mask": pr_mask}
-        visualize(**params)
+        params = []
+        for i in range(len(classes)):
+            params.append({
+                "image": image, 
+                "gt_{}" .format(classes[i]): gt_mask[i,:,:], 
+                "pred_{}" .format(classes[i]): pr_mask[i,:,:]})
+        visualize(params)
 
-    # total_time_str = str(datetime.timedelta(seconds=int(total_time)))
     print("model time:", model_time - start_time)
     print("inference time:", time.time() - start_time)
 
@@ -260,12 +308,15 @@ def generate_stl(**entrance):
 
 if __name__ == "__main__":
     entrance = {
-        "encoder_name": "efficientnet-b4",
-        # "best_model": ".\\output\\pth\\efficientnet-b4_noclip\\efficientnet-b4_epoch_23.pth",
-        # "best_model": ".\\output\\pth\\efficientnet-b4\\0316_174217\\efficientnet-b4_epoch_14.pth",
-        "best_model": ".\\output\\pth\\efficientnet-b4\\0315_clip\\efficientnet-b4_epoch_23.pth",
-        # "best_model": ".\\output\\pth\\efficientnet-b4\\0320_133848\\efficientnet-b4_epoch_24.pth",
-        # "best_model": ".\\output\\pth\\efficientnet-b4_MANet\\0321_142242\\efficientnet-b4_epoch_30.pth",
+        # "encoder_name": "efficientnet-b4",
+        # # # # "best_model": ".\\output\\pth\\efficientnet-b4_noclip\\efficientnet-b4_epoch_23.pth",
+        # # # # "best_model": ".\\output\\pth\\efficientnet-b4\\0316_174217\\efficientnet-b4_epoch_14.pth",
+        # "best_model": ".\\output\\pth\\efficientnet-b4\\0315_clip\\efficientnet-b4_epoch_23.pth",
+        # # "best_model": ".\\output\\pth\\efficientnet-b4_Unet_normal-rotated\\0404_183653\\efficientnet-b4_Unet_normal-rotated_epoch_20.pth",
+        # # "best_model": ".\\output\\pth\\efficientnet-b4\\0320_133848\\efficientnet-b4_epoch_24.pth",
+        # # "best_model": ".\\output\\pth\\efficientnet-b4_MANet\\0321_142242\\efficientnet-b4_epoch_30.pth",
+        # "best_model": "D:\share\efficientnet-b4_Unet_clip_rotated_epoch_46.pth",
+        
         # "encoder_name": "tu-regnety_040",
         # "best_model": ".\\output\pth\\tu-regnety_040_MANet_rotated\\0329_182350\\tu-regnety_040_MANet_rotated_epoch_70.pth",
         # "best_model": "D:\share\efficientnet-b4_MANet_epoch_56.pth", 
@@ -277,28 +328,38 @@ if __name__ == "__main__":
         # # "best_model": ".\\output\\pth\\mobileone_s4_Unet\\mobileone_s4_epoch_33.pth",
         # "best_model": ".\\output\\pth\\mobileone_s4_Unet\\0322_183333\\mobileone_s4_Unet_epoch_50.pth",
         
-        # "encoder_name": "stdc2",
-        # "best_model": ".\\output\\pth\\stdc2_Unet_clip-rotated\\0331_144655\\stdc2_Unet_clip-rotated_epoch_11.pth",
+        "encoder_name": "stdc2",
+        # # "best_model": ".\\output\\pth\\stdc2_Unet_clip-rotated\\0331_144655\\stdc2_Unet_clip-rotated_epoch_11.pth",
+        # "best_model": "D:\\share\\stdc\\stdc2_Unet_clip-rotated_epoch_50.pth",
+        "best_model": ".\\output\\pth\\stdc2_Unet_clip-rotated\\0406_183556\\stdc2_Unet_clip-rotated_epoch_66.pth",
 
-        "decoder_name": "MANet", #"Unet", #
+        "decoder_name": "Unet", #"MANet", #
         "device": "cuda:0",
-        "test_base_path": "D:\\project\\TrueHealth\\20230217_Alg1\\data\\examples\\src_seg\\train",
+        "test_base_path": "D:\\project\\TrueHealth\\20230217_Alg1\\data\\examples\\src_seg\\val",
         "image_path": "D:\\project\\TrueHealth\\20230217_Alg1\\data\\examples\\src_seg\\val\\20170831-000005\\dicom",
+        
         # "windowlevel": -600,
         # "windowwidth": 2000,
-        "windowlevel": -850,
-        "windowwidth": 310,
+        # "windowlevel": -850,
+        # "windowwidth": 310,
+
+        "windowlevel": 0,
+        "windowwidth": 2000,
+
         "middle_patch_size": 512,
-        "classes": ["lung"],
+        "classes": ["lung", "skin", "heart"], #["lung"], #["zhiqiguan"],# , 
         "in_channels": 1,
         "num_workers": 8,  # 多线程加载所需要的线程数目
         "pin_memory": True,  # 数据从CPU->pin_memory—>GPU加速
         "batch_size": 4,
         "save_base_path": "D:\project\TrueHealth\git\segmentation_models.pytorch\output\stl",
+
+        # "vis_graph": True,
     } 
 
     test_dataset = smp.datasets.SegDataset1(
         base_path=entrance["test_base_path"],
+        stl_names=entrance["classes"],
         height=entrance["middle_patch_size"],
         width=entrance["middle_patch_size"],
         channels=entrance["in_channels"],

@@ -64,15 +64,15 @@ def train(train_dataset, val_dataset, **entrance):
     decoder_name = entrance["decoder_name"]
     stragety = entrance["stragety"]
     output_stride = entrance["output_stride"]
-    num_classes = len(entrance["label_map"])
+    num_classes = len(entrance["classes"])
     model = smp.Unet(
     # model = smp.MAnet(
         encoder_name=encoder_name,  # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
         encoder_weights=None, # use `imagenet` pre-trained weights for encoder initialization
         # in_channels=entrance["in_channels"], # model input channels (1 for gray-scale images, 3 for RGB, etc.)
-        # classes=num_classes,  # model output channels (number of classes in your dataset)
+        classes=num_classes,  # model output channels (number of classes in your dataset)
         in_channels=1, # model input channels (1 for gray-scale images, 3 for RGB, etc.)
-        classes=1,
+        # classes=1,
         # output_stride=output_stride,
     )
 
@@ -179,7 +179,6 @@ def train(train_dataset, val_dataset, **entrance):
             "{}_{}_{}_epoch_{}.pth".format(encoder_name, decoder_name, stragety, epoch)
         )
 
-        # import pdb; pdb.set_trace()
         torch.save(model.state_dict(), pth_filename)
 
         ## valid
@@ -245,6 +244,7 @@ def main(entrance):
     
     train_dataset = SegDataset1(
         base_path=entrance["train_base_path"],
+        stl_names=entrance["classes"],
         height=entrance["middle_patch_size"],
         width=entrance["middle_patch_size"],
         windowlevel=entrance["windowlevel"],
@@ -254,6 +254,7 @@ def main(entrance):
     )
     val_dataset = SegDataset1(
         base_path=entrance["valid_base_path"],
+        stl_names=entrance["classes"],
         height=entrance["middle_patch_size"],
         width=entrance["middle_patch_size"],
         windowlevel=entrance["windowlevel"],
