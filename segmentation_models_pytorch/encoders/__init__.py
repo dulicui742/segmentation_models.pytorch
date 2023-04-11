@@ -71,6 +71,8 @@ def get_encoder(name, in_channels=3, depth=5, weights=None, output_stride=32, **
 
     params = encoders[name]["params"] ## stage_idxs, out_channels, model_name
     params.update(depth=depth)
+    if "stdc" in name:
+        params.update(output_stride=output_stride) ## dulicui
     encoder = Encoder(**params)
 
     if weights is not None:

@@ -73,7 +73,7 @@ def train(train_dataset, val_dataset, **entrance):
         classes=num_classes,  # model output channels (number of classes in your dataset)
         in_channels=1, # model input channels (1 for gray-scale images, 3 for RGB, etc.)
         # classes=1,
-        # output_stride=output_stride,
+        output_stride=output_stride,
     )
 
     ## ===============load pretrained model===============

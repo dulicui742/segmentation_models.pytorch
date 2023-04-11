@@ -34,8 +34,10 @@ class DecoderBlock(nn.Module):
         self.attention2 = md.Attention(attention_type, in_channels=out_channels)
         # self.output_stride = output_stride
 
-    def forward(self, x, skip=None):
-        x = F.interpolate(x, scale_factor=2, mode="nearest")
+    # def forward(self, x, skip=None):
+        # x = F.interpolate(x, scale_factor=2, mode="nearest")
+    def forward(self, x, skip=None, scale_factor=2):
+        x = F.interpolate(x, scale_factor=scale_factor, mode="nearest")
         if skip is not None:
             # print("concat in:", x.shape, skip.shape)
             x = torch.cat([x, skip], dim=1)
@@ -76,6 +78,7 @@ class UnetDecoder(nn.Module):
         attention_type=None,
         center=False,
         # output_stride=32,
+        scale_factor=[2, 2, 2, 2],
     ):
         super().__init__()
 
@@ -110,10 +113,32 @@ class UnetDecoder(nn.Module):
             for in_ch, skip_ch, out_ch in zip(in_channels, skip_channels, out_channels)
         ]
         self.blocks = nn.ModuleList(blocks)
+        self.scale_factor = scale_factor
+
+    # def forward(self, *features):
+
+    #     # import pdb; pdb.set_trace()
+    #     features = features[1:]  # remove first skip with same spatial resolution (input)
+    #     features = features[::-1]  # reverse channels to start from head of encoder
+
+    #     head = features[0]
+    #     skips = features[1:]
+    #     # head.shape: torch.Size([1, 448, 64, 64])
+    #     # [ skips.shape
+    #     # torch.Size([1, 160, 64, 64]), 
+    #     # torch.Size([1, 56, 64, 64]), 
+    #     # torch.Size([1, 32, 128, 128]), 
+    #     # torch.Size([1, 48, 256, 256])
+    #     # ]
+    #     x = self.center(head)
+    #     for i, decoder_block in enumerate(self.blocks):
+    #         skip = skips[i] if i < len(skips) else None
+    #         x = decoder_block(x, skip)
+    #         # print("decoder: ", i, x.shape)
+
+    #     return x
 
     def forward(self, *features):
-
-        # import pdb; pdb.set_trace()
         features = features[1:]  # remove first skip with same spatial resolution (input)
         features = features[::-1]  # reverse channels to start from head of encoder
 
@@ -129,7 +154,7 @@ class UnetDecoder(nn.Module):
         x = self.center(head)
         for i, decoder_block in enumerate(self.blocks):
             skip = skips[i] if i < len(skips) else None
-            x = decoder_block(x, skip)
+            x = decoder_block(x, skip, self.scale_factor[i])
             # print("decoder: ", i, x.shape)
 
         return x

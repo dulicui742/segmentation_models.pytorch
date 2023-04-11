@@ -19,7 +19,8 @@ class SDTCEncoder(STDCNet1446, EncoderMixin):
         base=64,
         depth=5,
         type="cat",
-        block_num=4
+        block_num=4,
+        output_stride=32,
     ):
         super().__init__()
 
@@ -28,7 +29,15 @@ class SDTCEncoder(STDCNet1446, EncoderMixin):
         elif type == "add":
             block = AddBottleneck
 
-        
+        print('=========================')
+        print("output_stride:", output_stride)
+        if output_stride == 16:
+            self.ds = range(len(layers) - 1)
+        elif output_stride == 8:
+            self.ds = range(len(layers) - 2)
+        else:
+            self.ds = range(len(layers))
+
         self._depth = depth
         self._in_channels = 3  ### patch_first_conv will use this parameter
         self._out_channels = out_channels
@@ -38,6 +47,10 @@ class SDTCEncoder(STDCNet1446, EncoderMixin):
             self.x8 = nn.Sequential(self.features[2:4])
             self.x16 = nn.Sequential(self.features[4:6])
             self.x32 = nn.Sequential(self.features[6:])
+        else:
+            self.x8 = nn.Sequential(self.features[2:6])
+            self.x16 = nn.Sequential(self.features[6:11])
+            self.x32 = nn.Sequential(self.features[11:])
 
     def re_make_layers(self, in_channels, base, layers, block_num, block):
         features = []
@@ -48,8 +61,12 @@ class SDTCEncoder(STDCNet1446, EncoderMixin):
             for j in range(layer):
                 if i == 0 and j == 0:
                     features.append(block(base, base*4, block_num, 2))
-                elif j == 0:
+                # elif j == 0:
+                #     features.append(block(base*int(math.pow(2,i+1)), base*int(math.pow(2,i+2)), block_num, 2))
+                elif j == 0 and i in self.ds:
                     features.append(block(base*int(math.pow(2,i+1)), base*int(math.pow(2,i+2)), block_num, 2))
+                elif j == 0 and i not in self.ds:
+                    features.append(block(base*int(math.pow(2,i+1)), base*int(math.pow(2,i+2)), block_num, 1))
                 else:
                     features.append(block(base*int(math.pow(2,i+2)), base*int(math.pow(2,i+2)), block_num, 1))
         return nn.Sequential(*features)
@@ -61,6 +78,7 @@ class SDTCEncoder(STDCNet1446, EncoderMixin):
         """Apply forward pass."""
         stages = self.get_stages()
         features = []
+
         for i in range(self._depth + 1):
             x = stages[i](x)
             features.append(x)

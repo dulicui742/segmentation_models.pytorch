@@ -95,7 +95,7 @@ class CatBottleneck(nn.Module):
     def forward(self, x):
         out_list = []
         out1 = self.conv_list[0](x)
-
+        # print("cat", "b1_a", out1.shape)
         for idx, conv in enumerate(self.conv_list[1:]):
             if idx == 0:
                 if self.stride == 2:
@@ -104,13 +104,15 @@ class CatBottleneck(nn.Module):
                     out = conv(out1)
             else:
                 out = conv(out)
+            # print("cat", idx, out.shape)
             out_list.append(out)
 
         if self.stride == 2:
             out1 = self.skip(out1)
+            # print("cat", "b1_b", out1.shape)
         out_list.insert(0, out1)
-
         out = torch.cat(out_list, dim=1)
+        # print("cat", out.shape)
         return out
 
 #STDC2Net

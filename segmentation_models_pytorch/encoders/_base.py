@@ -13,6 +13,7 @@ class EncoderMixin:
     """
 
     _output_stride = 32
+    dilation_list = []
 
     @property
     def out_channels(self):
@@ -39,7 +40,6 @@ class EncoderMixin:
         raise NotImplementedError
 
     def make_dilated(self, output_stride):
-
         if output_stride == 16:
             stage_list = [
                 5,
@@ -56,6 +56,7 @@ class EncoderMixin:
             raise ValueError("Output stride should be 16 or 8, got {}.".format(output_stride))
 
         self._output_stride = output_stride
+        self.dilation_list = dilation_list
 
         stages = self.get_stages()
         for stage_indx, dilation_rate in zip(stage_list, dilation_list):

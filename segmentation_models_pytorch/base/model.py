@@ -20,6 +20,13 @@ class SegmentationModel(torch.nn.Module):
                 f"Wrong input shape height={h}, width={w}. Expected image height and width "
                 f"divisible by {output_stride}. Consider pad your images to shape ({new_h}, {new_w})."
             )
+    
+    def get_scale_factor(self):
+        self.scale_factor = [2] * self.encoder._depth
+        for i in range(len(self.encoder.dilation_list)):
+            self.scale_factor[i] = 1
+        print(self.scale_factor) 
+        return self.scale_factor
 
     def forward(self, x):
         """Sequentially pass `x` trough model`s encoder, decoder and heads"""

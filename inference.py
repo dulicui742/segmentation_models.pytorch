@@ -72,7 +72,7 @@ def visualize(images):
     # plt.pause(1)
 
 
-def load_model(encoder_name, model_path, device, in_channels=1, classes=1):
+def load_model(encoder_name, model_path, device, in_channels=1, classes=1, output_stride=32):
     ## 实例化
     model = smp.Unet(
     # model = smp.MAnet(
@@ -80,6 +80,7 @@ def load_model(encoder_name, model_path, device, in_channels=1, classes=1):
         encoder_weights=None, 
         in_channels=in_channels, 
         classes=classes,
+        output_stride=output_stride
     ).to(device)
 
     ## load model parameters
@@ -127,7 +128,15 @@ def test(test_dataset, **entrance):
     model_path = entrance["best_model"]
     classes = entrance["classes"]
     num_classes = len(classes)
-    model = load_model(encoder_name, model_path, device, in_channels=1, classes=num_classes)
+    output_stride = entrance["output_stride"]
+    model = load_model(
+        encoder_name, 
+        model_path, 
+        device, 
+        in_channels=1, 
+        classes=num_classes, 
+        output_stride=output_stride
+    )
 
     ### re-parameterizable
     if  "mobileone" in encoder_name:
@@ -145,6 +154,7 @@ def test(test_dataset, **entrance):
     # evaluate model on test set
     random.seed(1)
     index = random.sample(range(0, len(test_dataset)), 20)
+    # index = range(len(test_dataset))
     for i in index:
         n = i
         image, gt_mask = test_dataset[n]
@@ -309,29 +319,33 @@ def generate_stl(**entrance):
 if __name__ == "__main__":
     entrance = {
         # "encoder_name": "efficientnet-b4",
-        # # # # "best_model": ".\\output\\pth\\efficientnet-b4_noclip\\efficientnet-b4_epoch_23.pth",
-        # # # # "best_model": ".\\output\\pth\\efficientnet-b4\\0316_174217\\efficientnet-b4_epoch_14.pth",
+        # # # # # "best_model": ".\\output\\pth\\efficientnet-b4_noclip\\efficientnet-b4_epoch_23.pth",
+        # # # # # "best_model": ".\\output\\pth\\efficientnet-b4\\0316_174217\\efficientnet-b4_epoch_14.pth",
         # "best_model": ".\\output\\pth\\efficientnet-b4\\0315_clip\\efficientnet-b4_epoch_23.pth",
         # # "best_model": ".\\output\\pth\\efficientnet-b4_Unet_normal-rotated\\0404_183653\\efficientnet-b4_Unet_normal-rotated_epoch_20.pth",
         # # "best_model": ".\\output\\pth\\efficientnet-b4\\0320_133848\\efficientnet-b4_epoch_24.pth",
-        # # "best_model": ".\\output\\pth\\efficientnet-b4_MANet\\0321_142242\\efficientnet-b4_epoch_30.pth",
+        # "best_model": ".\\output\\pth\\efficientnet-b4_MANet\\0321_142242\\efficientnet-b4_epoch_30.pth",
         # "best_model": "D:\share\efficientnet-b4_Unet_clip_rotated_epoch_46.pth",
         
         # "encoder_name": "tu-regnety_040",
-        # "best_model": ".\\output\pth\\tu-regnety_040_MANet_rotated\\0329_182350\\tu-regnety_040_MANet_rotated_epoch_70.pth",
-        # "best_model": "D:\share\efficientnet-b4_MANet_epoch_56.pth", 
-        # # "best_model": ".\\output\\pth\\tu-regnety_040_MANet\\0321_173313\\tu-regnety_040_MANet_epoch_35.pth",
+        # # "best_model": ".\\output\pth\\tu-regnety_040_MANet_rotated\\0329_182350\\tu-regnety_040_MANet_rotated_epoch_70.pth",
+        # # "best_model": "D:\share\efficientnet-b4_MANet_epoch_56.pth", 
+        # "best_model": ".\\output\\pth\\tu-regnety_040_MANet\\0321_173313\\tu-regnety_040_MANet_epoch_35.pth",
         # "best_model": ".\\output\\pth\\tu-regnety_040_MANet\\0323_183024\\tu-regnety_040_MANet_epoch_35.pth",
         # "encoder_name": "resnext101_32x4d",
         # "best_model": ".\\output\\pth\\resnext101_32x4d\\0321_092203\\resnext101_32x4d_epoch_30.pth",
+        
         # "encoder_name": "mobileone_s4",
-        # # "best_model": ".\\output\\pth\\mobileone_s4_Unet\\mobileone_s4_epoch_33.pth",
+        # # # "best_model": ".\\output\\pth\\mobileone_s4_Unet\\mobileone_s4_epoch_33.pth",
         # "best_model": ".\\output\\pth\\mobileone_s4_Unet\\0322_183333\\mobileone_s4_Unet_epoch_50.pth",
         
-        "encoder_name": "stdc2",
-        # # "best_model": ".\\output\\pth\\stdc2_Unet_clip-rotated\\0331_144655\\stdc2_Unet_clip-rotated_epoch_11.pth",
-        # "best_model": "D:\\share\\stdc\\stdc2_Unet_clip-rotated_epoch_50.pth",
-        "best_model": ".\\output\\pth\\stdc2_Unet_clip-rotated\\0406_183556\\stdc2_Unet_clip-rotated_epoch_66.pth",
+        # "encoder_name": "stdc2",
+        # # # "best_model": ".\\output\\pth\\stdc2_Unet_clip-rotated\\0331_144655\\stdc2_Unet_clip-rotated_epoch_11.pth",
+        # # "best_model": "D:\\share\\stdc\\stdc2_Unet_clip-rotated_epoch_50.pth",
+        # "best_model": ".\\output\\pth\\stdc2_Unet_clip-rotated\\0406_183556\\stdc2_Unet_clip-rotated_epoch_66.pth",
+
+        "encoder_name": "stdc1",
+        "best_model": ".\output\pth\stdc1_Unet_clip-rotated\\0410_150828\stdc1_Unet_clip-rotated_epoch_4.pth",
 
         "decoder_name": "Unet", #"MANet", #
         "device": "cuda:0",
@@ -347,12 +361,14 @@ if __name__ == "__main__":
         "windowwidth": 2000,
 
         "middle_patch_size": 512,
-        "classes": ["lung", "skin", "heart"], #["lung"], #["zhiqiguan"],# , 
+        "classes": ["lung"], #["zhiqiguan"],# , ["lung", "skin", "heart"], #
         "in_channels": 1,
         "num_workers": 8,  # 多线程加载所需要的线程数目
         "pin_memory": True,  # 数据从CPU->pin_memory—>GPU加速
         "batch_size": 4,
         "save_base_path": "D:\project\TrueHealth\git\segmentation_models.pytorch\output\stl",
+
+        "output_stride": 16,
 
         # "vis_graph": True,
     } 

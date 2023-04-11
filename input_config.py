@@ -22,9 +22,11 @@ entrance = {
 
     # "encoder_name": "efficientnet-b4",
     # "encoder_name": "mobileone_s4",
+    # "encoder_name": "mobileone_s3",
     # "encoder_name": "resnext101_32x4d",
     # "encoder_name": "tu-regnety_040", #regnety_040
-    "encoder_name": "stdc2",
+    # "encoder_name": "timm-regnety_040", #regnety_040
+    "encoder_name": "stdc2", ## stdc2
     "decoder_name": "Unet", #"MANet", #
     "stragety": "clip-rotated", #"normal-rotated", #
     "pretrained_model": None,
@@ -38,7 +40,7 @@ entrance = {
 
     # model config
     "classes": ["lung"], #["lung", "skin", "heart"],   #["zhiqiguan"], #
-    "output_stride": 32,
+    "output_stride": 16,
     "in_channels": 1,  ## CT  slice 
     "batch_size": 4, #16 (for stdc)
     "middle_patch_size": 512,
