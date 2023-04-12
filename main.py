@@ -43,6 +43,7 @@ from segmentation_models_pytorch.utils.optimizers import(
     get_rms_optimizer,
     get_adamW_optimizer,
 )
+from segmentation_models_pytorch.utils.customLR import Custom1 as CustomLR1
 from input_config import entrance
 
 
@@ -111,6 +112,7 @@ def train(train_dataset, val_dataset, **entrance):
     weight_decay = entrance["weight_decay"]
     momentum = entrance["momentum"]
     eps = entrance["eps"]
+    max_epoch = entrance["max_epoch"]
     optimizers = {
         "sgd": get_sgd_optimizer(
             model, lr, momentum=momentum, weight_decay=weight_decay
@@ -126,6 +128,28 @@ def train(train_dataset, val_dataset, **entrance):
         )
     }
     optimizer = optimizers[entrance["optimizer_name"]]
+
+    schedulers = {
+        # "stepLR": torch.optim.lr_scheduler.StepLR(
+        #     optimizer, step_size, gamma=gamma, last_epoch=-1
+        # ),
+        # "exponentialLR": t.optim.lr_scheduler.ExponentialLR(optimizer, gamma=gamma),
+        "customLR1": CustomLR1(
+            # loss_meter=loss_meter,
+            lr=lr,
+            pre_loss=pre_loss,
+            optimizer=optimizer,
+            lr_decay=entrance["lr_decay"],
+            min_lr=entrance["min_lr"],
+        ),
+        "OneCycleLR": torch.optim.lr_scheduler.OneCycleLR(
+            optimizer, max_lr=lr, steps_per_epoch=len(dataloader), epochs=max_epoch
+        ),
+        "Cosine": torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, T_max=max_epoch
+        ),
+    }
+    scheduler = schedulers[entrance["scheduler_name"]]
 
     ## ==================start to train===================
     print("----------start to train------------")
@@ -148,19 +172,22 @@ def train(train_dataset, val_dataset, **entrance):
     )
 
     timestamp = time.strftime(tfmt)
-    for epoch in range(initial_epoch, entrance["max_epoch"]):
+    for epoch in range(initial_epoch, max_epoch):
         print('\nEpoch: {}'.format(epoch))
         log_save_base_path = os.path.join(
             entrance["save_base_path"],
             entrance["log_folder"],
-            "{}_{}_{}". format(encoder_name, decoder_name, stragety)
+            "{}_{}". format(encoder_name, decoder_name),
+            "{}-{}x-{}" .format(stragety, output_stride, scheduler_name),
         )
         if not os.path.exists(log_save_base_path):
             os.makedirs(log_save_base_path)
 
         log_filename = os.path.join(
             log_save_base_path,
-            "{}_{}_{}_logs_{}.json".format(encoder_name, decoder_name, stragety, timestamp)
+            "{}_{}_{}-{}x-{}_logs_{}.json".format(
+                encoder_name, decoder_name, stragety, output_stride, scheduler_name, timestamp
+            )
         )
         # logs = train_epoch.run(dataloader)
         train_logs = train_epoch.custom_run(dataloader, epoch, log_filename)
@@ -169,14 +196,17 @@ def train(train_dataset, val_dataset, **entrance):
         pth_save_base_path = os.path.join(
             entrance["save_base_path"], 
             entrance["pth_folder"],
-            "{}_{}_{}". format(encoder_name, decoder_name, stragety),
+            "{}_{}". format(encoder_name, decoder_name),
+            "{}-{}x-{}" .format(stragety, output_stride, scheduler_name),
             timestamp
         )
         if not os.path.exists(pth_save_base_path):
             os.makedirs(pth_save_base_path)
         pth_filename = os.path.join(
             pth_save_base_path,
-            "{}_{}_{}_epoch_{}.pth".format(encoder_name, decoder_name, stragety, epoch)
+            "{}_{}_{}-{}x-{}_epoch_{}.pth".format(
+                encoder_name, decoder_name, stragety, output_stride, scheduler_name, epoch
+            )
         )
 
         torch.save(model.state_dict(), pth_filename)
@@ -184,17 +214,25 @@ def train(train_dataset, val_dataset, **entrance):
         ## valid
         valid_logs = valid_obj.custom_run(val_dataloader, epoch, log_filename)
 
+        scheduler.step(train_logs["bce_loss"])
+
         # keras.callbacks.ReduceLROnPlateau
         # torch.optim.lr_scheduler.ReduceLROnPlateau
         # if loss_meter.value()[0] > pre_loss * 1.0:
-        if train_logs["bce_loss"] > pre_loss * 1.0:
-            old_lr = lr
-            lr = lr * entrance["lr_decay"]
-            print("lr decay called: from {} to {}" .format(old_lr, lr))
-            for param_group in optimizer.param_groups:
-                param_group["lr"] = lr
-        pre_loss = train_logs["bce_loss"] #loss_meter.value()[0]
-        if lr < entrance["min_lr"]:
+        # if train_logs["bce_loss"] > pre_loss * 1.0:
+        #     old_lr = lr
+        #     lr = lr * entrance["lr_decay"]
+        #     print("lr decay called: from {} to {}" .format(old_lr, lr))
+        #     for param_group in optimizer.param_groups:
+        #         param_group["lr"] = lr
+        # pre_loss = train_logs["bce_loss"] #loss_meter.value()[0]
+        # if lr < entrance["min_lr"]:
+        #     break
+
+        # custom_scheduler
+        print("current lr: {}".format(optimizer.param_groups[0]["lr"]))
+        if hasattr(scheduler, "should_break") and scheduler.should_break():
+            print(f"Break because {scheduler} said so.")
             break
 
 

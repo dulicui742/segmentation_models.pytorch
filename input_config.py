@@ -26,7 +26,7 @@ entrance = {
     # "encoder_name": "resnext101_32x4d",
     # "encoder_name": "tu-regnety_040", #regnety_040
     # "encoder_name": "timm-regnety_040", #regnety_040
-    "encoder_name": "stdc2", ## stdc2
+    "encoder_name": "stdc1", ## stdc2
     "decoder_name": "Unet", #"MANet", #
     "stragety": "clip-rotated", #"normal-rotated", #
     "pretrained_model": None,
@@ -40,16 +40,17 @@ entrance = {
 
     # model config
     "classes": ["lung"], #["lung", "skin", "heart"],   #["zhiqiguan"], #
-    "output_stride": 16,
+    "output_stride": 32,
     "in_channels": 1,  ## CT  slice 
-    "batch_size": 4, #16 (for stdc)
+    "batch_size": 16, #16 (for stdc) 4 (for efficientnet)
     "middle_patch_size": 512,
     "patch_size": 299,
     "plot_every": 50,
 
     "optimizer_name": "adam", #"adamw",#
-    "weight_decay": 0, # 
+    "weight_decay": 1e-5, # 
     "eps": 1e-8,
+    "scheduler_name": "OneCycleLR", #"customLR1", #
 
     # # RMS
     # "weight_decay": 0.9,
@@ -60,9 +61,9 @@ entrance = {
     "gamma": 0.16,
     "step_size": 30, # lr will be decay every step_size epoch
 
-    "max_epoch": 300,
+    "max_epoch": 60,
     "lr": 1e-4,  # 学习率
-    "min_lr": 1e-10,  # 当学习率低于这个值，就退出训练
+    "min_lr": 1e-10,  # 当学习率低于这个值，就退出训练1e-10
     "lr_decay": 0.5,  # 当一个epoch的损失开始上升lr = lr*lr_decay
 
     # output path

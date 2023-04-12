@@ -68,8 +68,8 @@ def visualize(images):
             plt.yticks([])
             plt.title(' '.join(name.split('_')).title())
             plt.imshow(image, cmap=plt.cm.gray)
-    plt.show()
-    # plt.pause(1)
+    # plt.show()
+    plt.pause(1)
 
 
 def load_model(encoder_name, model_path, device, in_channels=1, classes=1, output_stride=32):
@@ -340,12 +340,15 @@ if __name__ == "__main__":
         # "best_model": ".\\output\\pth\\mobileone_s4_Unet\\0322_183333\\mobileone_s4_Unet_epoch_50.pth",
         
         # "encoder_name": "stdc2",
-        # # # "best_model": ".\\output\\pth\\stdc2_Unet_clip-rotated\\0331_144655\\stdc2_Unet_clip-rotated_epoch_11.pth",
-        # # "best_model": "D:\\share\\stdc\\stdc2_Unet_clip-rotated_epoch_50.pth",
-        # "best_model": ".\\output\\pth\\stdc2_Unet_clip-rotated\\0406_183556\\stdc2_Unet_clip-rotated_epoch_66.pth",
+        # # # # "best_model": ".\\output\\pth\\stdc2_Unet_clip-rotated\\0331_144655\\stdc2_Unet_clip-rotated_epoch_11.pth",
+        # # # "best_model": "D:\\share\\stdc\\stdc2_Unet_clip-rotated_epoch_50.pth",
+        # # "best_model": ".\\output\\pth\\stdc2_Unet_clip-rotated\\0406_183556\\stdc2_Unet_clip-rotated_epoch_66.pth",
+        # "best_model": "D:\share\stdc\stdc2_Unet_clip-rotated_8x_epoch_10.pth",
 
         "encoder_name": "stdc1",
-        "best_model": ".\output\pth\stdc1_Unet_clip-rotated\\0410_150828\stdc1_Unet_clip-rotated_epoch_4.pth",
+        # "best_model": ".\output\pth\stdc1_Unet_clip-rotated\\0410_150828\stdc1_Unet_clip-rotated_epoch_4.pth",
+        "best_model": ".\output\pth\stdc1_Unet_clip-rotated\\0412_132929\stdc1_Unet_clip-rotated_epoch_59.pth",
+        # "best_model": ".\output\pth\stdc1_Unet_clip-rotated\\0412_112630\stdc1_Unet_clip-rotated_epoch_59.pth",
 
         "decoder_name": "Unet", #"MANet", #
         "device": "cuda:0",
@@ -361,14 +364,14 @@ if __name__ == "__main__":
         "windowwidth": 2000,
 
         "middle_patch_size": 512,
-        "classes": ["lung"], #["zhiqiguan"],# , ["lung", "skin", "heart"], #
+        "classes": ["lung"], # ["zhiqiguan"],# , ["lung", "skin", "heart"], #
         "in_channels": 1,
         "num_workers": 8,  # 多线程加载所需要的线程数目
         "pin_memory": True,  # 数据从CPU->pin_memory—>GPU加速
         "batch_size": 4,
         "save_base_path": "D:\project\TrueHealth\git\segmentation_models.pytorch\output\stl",
 
-        "output_stride": 16,
+        "output_stride": 32,
 
         # "vis_graph": True,
     } 

@@ -47,7 +47,6 @@ class Epoch:
             file=sys.stdout,
             disable=not (self.verbose),
         ) as iterator:
-            # import pdb; pdb.set_trace()
             for step, (x, y) in enumerate(iterator):
                 ##RuntimeError: Input type (torch.cuda.DoubleTensor) 
                 ## and weight type (torch.cuda.FloatTensor) should be the same
@@ -57,7 +56,6 @@ class Epoch:
                 loss, y_pred = self.batch_update(x, y)
 
                 # update loss logs
-                # pdb.set_trace()
                 loss_value = loss.cpu().detach().numpy()
                 loss_meter.add(loss_value)
                 loss_logs = {self.loss.__name__: loss_meter.mean}
@@ -99,11 +97,12 @@ class Epoch:
                 loss, y_pred = self.batch_update(x, y)
 
                 # update loss logs
-                # pdb.set_trace()
+                # import pdb; pdb.set_trace()
                 loss_value = loss.cpu().detach().numpy()
                 loss_meter.add(loss_value)
                 loss_logs = {self.loss.__name__: loss_meter.mean}
                 logs_.update({"step": step})
+                # logs_.update({"lr", self.optimizer.param_groups[0]["lr"]})
                 logs_.update(loss_logs)
                 logs.update(loss_logs)
 
@@ -126,7 +125,6 @@ class Epoch:
                     #     % (self.stage_name, epoch, step, time.time() - start, loss_meter.value()[0])
                     # )
                     logs_info = json.dumps(logs_)
-                    # log_file = "D:\\project\\TrueHealth\\git\\segmentation_models.pytorch\\output\\logs\\0314.json"
                     with open(log_file, "a") as f:
                         print(logs_info, file=f)
 
