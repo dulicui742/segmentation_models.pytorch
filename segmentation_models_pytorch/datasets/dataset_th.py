@@ -182,6 +182,7 @@ class SegDataset1(Dataset):
                 # os.path.join(self.mask_path, maskn)
                 maskn  ## 只保存maskname
                 ]) 
+        # self.image_labels = self.image_labels[:50]  ###debug
         print("uids:", len(self.uids), "image_label:", len(self.image_labels))
 
 

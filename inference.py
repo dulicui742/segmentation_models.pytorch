@@ -154,6 +154,7 @@ def test(test_dataset, **entrance):
     # evaluate model on test set
     random.seed(1)
     index = random.sample(range(0, len(test_dataset)), 20)
+    print(index)
     # index = range(len(test_dataset))
     for i in index:
         n = i
@@ -335,33 +336,36 @@ if __name__ == "__main__":
         # "encoder_name": "resnext101_32x4d",
         # "best_model": ".\\output\\pth\\resnext101_32x4d\\0321_092203\\resnext101_32x4d_epoch_30.pth",
         
-        # "encoder_name": "mobileone_s4",
-        # # # "best_model": ".\\output\\pth\\mobileone_s4_Unet\\mobileone_s4_epoch_33.pth",
-        # "best_model": ".\\output\\pth\\mobileone_s4_Unet\\0322_183333\\mobileone_s4_Unet_epoch_50.pth",
+        "encoder_name": "mobileone_s4",
+        # "best_model": ".\\output\\pth\\mobileone_s4_Unet\\mobileone_s4_epoch_33.pth",
+        "best_model": ".\\output\\pth\\mobileone_s4_Unet\\0322_183333\\mobileone_s4_Unet_epoch_30.pth", #50
+        # "best_model": ".\output\pth\mobileone_s4_Unet\clip-rotated-32x-customLR1\\0413_112951\mobileone_s4_Unet_clip-rotated-32x-customLR1_epoch_30.pth",
         
         # "encoder_name": "stdc2",
         # # # # "best_model": ".\\output\\pth\\stdc2_Unet_clip-rotated\\0331_144655\\stdc2_Unet_clip-rotated_epoch_11.pth",
         # # # "best_model": "D:\\share\\stdc\\stdc2_Unet_clip-rotated_epoch_50.pth",
         # # "best_model": ".\\output\\pth\\stdc2_Unet_clip-rotated\\0406_183556\\stdc2_Unet_clip-rotated_epoch_66.pth",
+        # "best_model": ".\\output\pth\stdc2_Unet\clip-rotated-32x-customLR1\\0413_101447\stdc2_Unet_clip-rotated-32x-customLR1_epoch_60.pth",
         # "best_model": "D:\share\stdc\stdc2_Unet_clip-rotated_8x_epoch_10.pth",
 
-        "encoder_name": "stdc1",
-        # "best_model": ".\output\pth\stdc1_Unet_clip-rotated\\0410_150828\stdc1_Unet_clip-rotated_epoch_4.pth",
-        "best_model": ".\output\pth\stdc1_Unet_clip-rotated\\0412_132929\stdc1_Unet_clip-rotated_epoch_59.pth",
-        # "best_model": ".\output\pth\stdc1_Unet_clip-rotated\\0412_112630\stdc1_Unet_clip-rotated_epoch_59.pth",
+        # "encoder_name": "stdc1",
+        # # "best_model": ".\output\pth\stdc1_Unet_clip-rotated\\0410_150828\stdc1_Unet_clip-rotated_epoch_4.pth",
+        # "best_model": ".\output\pth\stdc1_Unet_clip-rotated\\0412_132929\stdc1_Unet_clip-rotated_epoch_59.pth",
+        # # "best_model": ".\output\pth\stdc1_Unet_clip-rotated\\0412_112630\stdc1_Unet_clip-rotated_epoch_59.pth",
 
         "decoder_name": "Unet", #"MANet", #
         "device": "cuda:0",
         "test_base_path": "D:\\project\\TrueHealth\\20230217_Alg1\\data\\examples\\src_seg\\val",
         "image_path": "D:\\project\\TrueHealth\\20230217_Alg1\\data\\examples\\src_seg\\val\\20170831-000005\\dicom",
         
-        # "windowlevel": -600,
-        # "windowwidth": 2000,
+        "windowlevel": -600,
+        "windowwidth": 2000,
+
         # "windowlevel": -850,
         # "windowwidth": 310,
 
-        "windowlevel": 0,
-        "windowwidth": 2000,
+        # "windowlevel": 0,
+        # "windowwidth": 2000,
 
         "middle_patch_size": 512,
         "classes": ["lung"], # ["zhiqiguan"],# , ["lung", "skin", "heart"], #

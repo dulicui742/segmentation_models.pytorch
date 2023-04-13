@@ -1,9 +1,12 @@
+import numpy as np
 import torch
 import torch.nn as nn
 
 from . import base
 from . import functional as F
 from ..base.modules import Activation
+from ..losses.focal import FocalLoss as FL
+from ..losses.dice import DiceLoss as DL
 
 
 class JaccardLoss(base.Loss):
@@ -44,6 +47,10 @@ class DiceLoss(base.Loss):
         )
 
 
+class DiceLoss1(DL, base.Loss):
+    pass
+
+
 class L1Loss(nn.L1Loss, base.Loss):
     pass
 
@@ -76,4 +83,8 @@ class BCELoss(nn.BCELoss, base.Loss):
 
 
 class BCEWithLogitsLoss(nn.BCEWithLogitsLoss, base.Loss):
+    pass
+
+
+class FocalLoss(FL, base.Loss):
     pass

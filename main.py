@@ -31,7 +31,10 @@ from segmentation_models_pytorch.utils.train import(
 from segmentation_models_pytorch.utils.losses import(
     JaccardLoss,
     DiceLoss,
-    BCELoss
+    DiceLoss1,
+    BCELoss,
+    BCEWithLogitsLoss,
+    FocalLoss,
 )
 from segmentation_models_pytorch.utils.metrics import(
     IoU, Fscore, Precision, Recall, Accuracy
@@ -106,13 +109,16 @@ def train(train_dataset, val_dataset, **entrance):
         drop_last=False,
     )
 
-    ##=====================optimizer=================
+    ##=====================optimizer/loss=================
     pre_loss = 100
     lr = entrance["lr"]
     weight_decay = entrance["weight_decay"]
     momentum = entrance["momentum"]
     eps = entrance["eps"]
     max_epoch = entrance["max_epoch"]
+    scheduler_name = entrance["scheduler_name"]
+    mode = entrance["mode"]
+
     optimizers = {
         "sgd": get_sgd_optimizer(
             model, lr, momentum=momentum, weight_decay=weight_decay
@@ -149,11 +155,21 @@ def train(train_dataset, val_dataset, **entrance):
             optimizer, T_max=max_epoch
         ),
     }
-    scheduler = schedulers[entrance["scheduler_name"]]
+    scheduler = schedulers[scheduler_name]
+
+    criterions = {
+        "bce": BCELoss(), #BCEWithLogitsLoss(), #
+        # "dice": DiceLoss(eps=1e-7, beta=1.0, activation=None, ignore_channels=None),
+        # "focal": FocalLoss(apply_nonlin=torch.nn.Softmax(dim=1)),
+        "dice": DiceLoss1(mode=mode,),
+        "focal": FocalLoss(mode=mode, alpha=0.25,),
+        "wbce": BCEWithLogitsLoss(pos_weight=torch.tensor([10])),
+    }
 
     ## ==================start to train===================
     print("----------start to train------------")
-    criterion = BCELoss()
+    loss_function = entrance["loss_function"]
+    criterion = criterions[loss_function]
     metrics = [IoU(), Fscore(), Precision(), Recall(), Accuracy()]
     device = torch.device(entrance["device"] if torch.cuda.is_available() else "cpu")
     train_epoch = TrainEpoch(
@@ -214,7 +230,8 @@ def train(train_dataset, val_dataset, **entrance):
         ## valid
         valid_logs = valid_obj.custom_run(val_dataloader, epoch, log_filename)
 
-        scheduler.step(train_logs["bce_loss"])
+        scheduler.step(train_logs[criterion.__name__])
+        # print(train_logs[criterion.__name__], avg_loss)
 
         # keras.callbacks.ReduceLROnPlateau
         # torch.optim.lr_scheduler.ReduceLROnPlateau
@@ -230,7 +247,7 @@ def train(train_dataset, val_dataset, **entrance):
         #     break
 
         # custom_scheduler
-        print("current lr: {}".format(optimizer.param_groups[0]["lr"]))
+        print("current lr: {}".format(scheduler.lr))
         if hasattr(scheduler, "should_break") and scheduler.should_break():
             print(f"Break because {scheduler} said so.")
             break
