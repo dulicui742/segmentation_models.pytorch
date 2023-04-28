@@ -175,7 +175,8 @@ class SegDataset1(Dataset):
             self.image_path = os.path.join(base_path, uid, image_folder_name)
             image_names = os.listdir(self.image_path)
 
-            self.mask_path = os.path.join(base_path, uid, mask_folder_name, "lung")
+            # self.mask_path = os.path.join(base_path, uid, mask_folder_name, "lung")
+            self.mask_path = os.path.join(base_path, uid, mask_folder_name, "zhiqiguan")
             mask_names = os.listdir(self.mask_path)
             for imagen, maskn in zip(image_names, mask_names):
                 self.image_labels.append([os.path.join(self.image_path, imagen), 
@@ -200,7 +201,7 @@ class SegDataset1(Dataset):
         ## method1
         # image = ((image - self.windowlevel) / self.windowwidth + 0.5) * 255.0
 
-        ## method2
+        # ## method2
         image = ((image - self.windowlevel) / self.windowwidth + 0.5)
         image = np.clip(image, 0, 1) * 255.0
 
@@ -243,26 +244,19 @@ class SegDataset1(Dataset):
             image = _rotate(image, angle)
             mask = _rotate(mask, angle)
 
-        # if self.transform:
-        #     image = self.transform(image) ## 旋转，reshape，astype
-        #     # mask = self.transform(mask)
-        # if self.target_transform:
-        #     label = self.target_transform(label)
-
-        
         if self.transform:
-            image = image.transpose(2,0,1).astype(np.uint8)
-            mask = mask.transpose(2,0,1).astype(np.uint8)
+            image = image.astype(np.uint8)
+            mask = mask.astype(np.uint8)
             transform_image_mask = self.transform(image=image, mask=mask)
             image = transform_image_mask["image"]
             mask = transform_image_mask["mask"]
-        else:
-            image = image.transpose(2,0,1)
-            mask = mask.transpose(2,0,1)
+            
+        image = image.transpose(2,0,1)
+        mask = mask.transpose(2,0,1)
 
         ##ValueError: At least one stride in the given numpy array is negative, 
         # and tensors with negative strides are not currently supported. 
         # (You can probably work around this by making a copy of your array  with array.copy().)
-        image = image.copy()
-        mask = mask.copy()
+        # image = image.copy()
+        # mask = mask.copy()
         return image, mask

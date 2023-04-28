@@ -9,11 +9,11 @@ import torchvision.transforms as transforms
 # tfmt = '%m%d_%H%M%D'
 tfmt = "%m%d"
 entrance = {
-    "windowlevel": -600,
-    "windowwidth": 2000,
+    # "windowlevel": -600,
+    # "windowwidth": 2000,
 
-    # "windowlevel": -850,
-    # "windowwidth": 310,
+    "windowlevel": -850,
+    "windowwidth": 310,
 
     # "windowlevel": 0,
     # "windowwidth": 2000,
@@ -21,13 +21,13 @@ entrance = {
     "train_base_path": "D:\\project\\TrueHealth\\20230217_Alg1\\data\\examples\\src_seg\\train",
     "valid_base_path": "D:\\project\\TrueHealth\\20230217_Alg1\\data\\examples\\src_seg\\val",
 
-    "encoder_name": "efficientnet-b4",
+    # "encoder_name": "efficientnet-b4",
     # "encoder_name": "mobileone_s4",
     # "encoder_name": "mobileone_s3",
     # "encoder_name": "resnext101_32x4d",
     # "encoder_name": "tu-regnety_040", #regnety_040
     # "encoder_name": "timm-regnety_040", #regnety_040
-    # "encoder_name": "stdc2", ## stdc2
+    "encoder_name": "stdc2", ## stdc2
     "decoder_name": "Unet", #"MANet", #
     "stragety": "clip-rotated", #"normal-rotated", #
     "pretrained_model": None,
@@ -41,18 +41,18 @@ entrance = {
     "pin_memory": True,  # 数据从CPU->pin_memory—>GPU加速
 
     # model config
-    "classes": ["lung"], #["lung", "skin", "heart"],   #["zhiqiguan"], #
+    "classes": ["zhiqiguan"], #  ["lung"], #["lung", "skin", "heart"], 
     "output_stride": 32,
     "in_channels": 1,  ## CT  slice 
-    "batch_size": 4, #16 (for stdc) 4 (for efficientnet)
+    "batch_size": 16, #16 (for stdc) 4 (for efficientnet)
     "middle_patch_size": 512,
     "patch_size": 299,
     "plot_every": 50,
 
-    "loss_function": "bce", ## focal, dice, bce
+    "loss_function": "sum", ## focal, dice, bce
     "mode": "binary", ## "multiclass", "multilabel"
     
-    "optimizer_name": "adam", #"adamw",#
+    "optimizer_name": "adam", #"adamw",#"adam""sgd", #
     "weight_decay": 0, # 1e-5
     "eps": 1e-8,
     "scheduler_name": "customLR1", #"OneCycleLR", #

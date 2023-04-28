@@ -46,7 +46,7 @@ def get_sgd_optimizer(model, lr, momentum, weight_decay=1e-5):
 
 
 def get_rms_optimizer(model, lr, alpha=0.9, momentum=0.9, weight_decay=1e-5, eps=1e-08):
-    print(f"lr: {lr}, momentum: {momentum}, weight_decay: {weight_decay}, eps: {eps}")
+    # print(f"lr: {lr}, momentum: {momentum}, weight_decay: {weight_decay}, eps: {eps}")
     optimizer = torch.optim.RMSprop(
         filter(lambda p: p.requires_grad, model.parameters()), 
         lr=lr, 

@@ -76,6 +76,7 @@ def load_model(encoder_name, model_path, device, in_channels=1, classes=1, outpu
     ## 实例化
     model = smp.Unet(
     # model = smp.MAnet(
+    # model = smp.AttentionUnet(
         encoder_name=encoder_name,  
         encoder_weights=None, 
         in_channels=in_channels, 
@@ -184,137 +185,181 @@ def generate_stl(**entrance):
     start_time = time.time()
     encoder_name = entrance["encoder_name"]
     decoder_name = entrance["decoder_name"]
-    image_path = entrance["image_path"]
+    # image_path = entrance["image_path"]
+    image_base_path = entrance["image_base_path"]
     device = torch.device(entrance["device"] if torch.cuda.is_available() else "cpu")
     windowlevel = entrance["windowlevel"]
     windowwidth = entrance["windowwidth"]
     best_model_path = entrance["best_model"]
     labels = entrance["classes"]
+    num_classes = len(entrance["classes"])
+    output_stride = entrance["output_stride"]
+    stragety = entrance["stragety"]
+    sigmoid_threshold = entrance["sigmoid_threshold"]
 
-    best_model = load_model(encoder_name, best_model_path, device)
+    # best_model = load_model(encoder_name, best_model_path, device)
+    best_model = load_model(
+        encoder_name, 
+        best_model_path, 
+        device, 
+        in_channels=1, 
+        classes=num_classes, 
+        output_stride=output_stride
+    )
     load_model_time = time.time()
 
-    dicomreader = vtk.vtkDICOMImageReader()
-    dicomreader.SetDirectoryName(image_path)
-    dicomreader.Update()
-    output = dicomreader.GetOutput()
-    dimensions = output.GetDimensions()
-    print("dimension:", dimensions)
 
-    dicomArray = numpy_support.vtk_to_numpy(output.GetPointData().GetScalars())
-    dicomArray = dicomArray.reshape(dimensions[::-1]).astype(np.float32)
-    copyArray = dicomArray * 0
-
-    for i in range(dimensions[2]):
-        img = dicomArray[i, ::-1, :] 
-        img = (img - windowlevel) / windowwidth + 0.5
-        img = np.clip(img, 0, 1) * 255
-        # cv2.imshow("img", img/255)
-        # params = {"image": img}
-        # visualize(**params)
-        img = img.reshape((1, dimensions[1], dimensions[0]))
-        x_tensor = torch.from_numpy(img).to(device).unsqueeze(0).float()
-        preds = best_model.predict(x_tensor)  # 预测图
-        # preds = torch.sigmoid(preds)
-        (n, c, h, w) = preds.shape
-        # preds = (preds.squeeze().cpu().numpy().round()) ## shape: 512 * 512
-        preds = (preds.squeeze().cpu().numpy())
-
-        preds[preds > 0.1] = 1
-        # params = {"pred0": preds}
-        # visualize(**params)
-        tmp = copyArray[i, ::-1, :] + preds * 1 #pix
-        copyArray[i, ::-1, :] += np.clip(tmp, 0, 1) #pix
-        # copyArray[i, ::-1, :] += tmp #pix
-
-        # params = {"pred0": preds}
-        # visualize(**params)
-
+    uids = os.listdir(image_base_path)
+    for uid in uids:
+        start_infernce = time.time()
+        if "txt" in uid or "xlsx" in uid: ## except readme
+            continue
         
+        # if uid in ["PA1", "PA13", "PA11", "PA12", "PA10", "PA2"]:
+        if uid in ["PA2"]:
+            print("skip: ", uid)
+            continue
 
-        # # # (n, h, w, c) = preds.shape
-        # # # (n, c, h, w) = preds.shape
-        # for index in range(c):
-        #     pix = index + 1
-        #     # pred = preds[0, :, :, index:index + 1]
-        #     pred = preds
-        #     # cv2.imshow("pred0", pred)
+        # if uid not in ["PA7", "PA8"]:
+        #     continue
 
-        #     # params = {"pred0": pred}
-        #     # visualize(**params)
+        print("\n------------------------------")
+        print("dealing with: {}" .format(uid))
 
-        #     pred[pred > 0.1] = 1
-        #     # pred[pred < 0.05] = 0
-        #     pred = pred.reshape((dimensions[1], dimensions[0]))
-        #     tmp = copyArray[i, ::-1, :] + pred * pix
-        #     copyArray[i, ::-1, :] += np.clip(tmp, 0, pix)
-        # # # cv2.imshow("pred", copyArray[i, ::-1, :])
-        # # # cv2.waitKey(1)
+        image_path = os.path.join(image_base_path, uid, "dicom")
+        dicomreader = vtk.vtkDICOMImageReader()
+        dicomreader.SetDirectoryName(image_path)
+        dicomreader.Update()
+        output = dicomreader.GetOutput()
+        dimensions = output.GetDimensions()
+        print("dimension:", dimensions)
 
-        # params = {"pred": copyArray[i, ::-1, :]}
-        # visualize(**params)
-    inference_time = time.time()
+        dicomArray = numpy_support.vtk_to_numpy(output.GetPointData().GetScalars())
+        dicomArray = dicomArray.reshape(dimensions[::-1]).astype(np.float32)
+        copyArray = dicomArray * 0
 
-    copyArray = copyArray.astype(np.uint8)
-    # vtk_data = vtk.util.numpy_support.numpy_to_vtk(
-    vtk_data = numpy_support.numpy_to_vtk(
-        np.ravel(copyArray), dimensions[2], vtk.VTK_UNSIGNED_CHAR
-    )
-    image = vtk.vtkImageData()
-    image.SetDimensions(output.GetDimensions())
-    image.SetSpacing(output.GetSpacing())
-    image.SetOrigin(output.GetOrigin())
-    image.GetPointData().SetScalars(vtk_data)
-    output = image
-    print(image.GetDimensions())
+        for i in range(dimensions[2]):
+            img = dicomArray[i, ::-1, :] 
+            # ## method1
+            # img = ((img - windowlevel) / windowwidth + 0.5) * 255.0
 
-    contour = vtk.vtkDiscreteMarchingCubes()
-    contour.SetInputData(output)
-    contour.ComputeNormalsOn()
-    # contour.SetValue(0, 1)
-    contour.GenerateValues(len(labels), 0, len(labels) + 1)
-    contour.Update()
-    output = contour.GetOutput()
+            # ## method2 
+            img = (img - windowlevel) / windowwidth + 0.5
+            img = np.clip(img, 0, 1) * 255
 
-    mapper = vtk.vtkPolyDataMapper()
-    mapper.SetInputData(output)
-    mapper.ScalarVisibilityOff()
+            # cv2.imshow("img", img/255)
+            # params = {"image": img}
+            # visualize(**params)
+            img = img.reshape((1, dimensions[1], dimensions[0]))
+            x_tensor = torch.from_numpy(img).to(device).unsqueeze(0).float()
+            preds = best_model.predict(x_tensor)  # 预测图
+            preds = torch.sigmoid(preds)
+            (n, c, h, w) = preds.shape
+            # preds = (preds.squeeze().cpu().numpy().round()) ## shape: 512 * 512
+            preds = (preds.squeeze().cpu().numpy())
+            preds[preds > sigmoid_threshold] = 1
+            # preds[preds > 0.1] = 1
+            # params = {"pred0": preds}
+            # visualize(**params)
+            tmp = copyArray[i, ::-1, :] + preds * 1 #pix
+            copyArray[i, ::-1, :] += np.clip(tmp, 0, 1) #pix
+            # copyArray[i, ::-1, :] += tmp #pix
 
-    actor = vtk.vtkActor()
-    actor.SetMapper(mapper)
-    actor.GetProperty().SetColor(1, 1, 1)
-    writer = vtk.vtkSTLWriter()
-    writer.SetInputData(output)
+            # params = {"pred0": preds}
+            # visualize(**params)
 
-    label_name = labels[0]
-    uid = image_path.split("\\")[-2]
-    stl_save_base_path = os.path.join(entrance["save_base_path"], label_name)
-    if not os.path.exists(stl_save_base_path):
-        os.makedirs(stl_save_base_path)
-    stl_name = os.path.join(
-        stl_save_base_path, "{}_{}_{}_{}.stl" .format(
-            uid, encoder_name, decoder_name, time.strftime("%m%d_%H%M%S")
+            
+
+            # # # (n, h, w, c) = preds.shape
+            # # # (n, c, h, w) = preds.shape
+            # for index in range(c):
+            #     pix = index + 1
+            #     # pred = preds[0, :, :, index:index + 1]
+            #     pred = preds
+            #     # cv2.imshow("pred0", pred)
+
+            #     # params = {"pred0": pred}
+            #     # visualize(**params)
+
+            #     pred[pred > 0.1] = 1
+            #     # pred[pred < 0.05] = 0
+            #     pred = pred.reshape((dimensions[1], dimensions[0]))
+            #     tmp = copyArray[i, ::-1, :] + pred * pix
+            #     copyArray[i, ::-1, :] += np.clip(tmp, 0, pix)
+            # # # cv2.imshow("pred", copyArray[i, ::-1, :])
+            # # # cv2.waitKey(1)
+
+            # params = {"pred": copyArray[i, ::-1, :]}
+            # visualize(**params)
+        inference_time = time.time()
+
+        copyArray = copyArray.astype(np.uint8)
+        # vtk_data = vtk.util.numpy_support.numpy_to_vtk(
+        vtk_data = numpy_support.numpy_to_vtk(
+            np.ravel(copyArray), dimensions[2], vtk.VTK_UNSIGNED_CHAR
         )
-    )
-    writer.SetFileName(stl_name.encode("GBK"))
-    writer.SetFileTypeToBinary()
-    writer.Update()
+        image = vtk.vtkImageData()
+        image.SetDimensions(output.GetDimensions())
+        image.SetSpacing(output.GetSpacing())
+        image.SetOrigin(output.GetOrigin())
+        image.GetPointData().SetScalars(vtk_data)
+        output = image
+        print(image.GetDimensions())
 
-    renderer = vtk.vtkRenderer()
-    renderWindow = vtk.vtkRenderWindow()
-    renderWindow.AddRenderer(renderer)
-    interactor = vtk.vtkRenderWindowInteractor()
-    interactor.SetRenderWindow(renderWindow)
-    renderer.AddActor(actor)
-    renderer.SetBackground(0.1, 0.2, 0.3)
-    interactor.Initialize()
-    renderWindow.Render()
-    interactor.Start()
-    end_time = time.time()
-    print("model:", load_model_time - start_time)
-    print("inference time:", inference_time - load_model_time)
-    print("3D recon time:", end_time - inference_time)
-    print("total time:", end_time - start_time)
+        contour = vtk.vtkDiscreteMarchingCubes()
+        contour.SetInputData(output)
+        contour.ComputeNormalsOn()
+        # contour.SetValue(0, 1)
+        contour.GenerateValues(len(labels), 0, len(labels) + 1)
+        contour.Update()
+        output = contour.GetOutput()
+
+        mapper = vtk.vtkPolyDataMapper()
+        mapper.SetInputData(output)
+        mapper.ScalarVisibilityOff()
+
+        actor = vtk.vtkActor()
+        actor.SetMapper(mapper)
+        actor.GetProperty().SetColor(1, 1, 1)
+        writer = vtk.vtkSTLWriter()
+        writer.SetInputData(output)
+
+        label_name = labels[0]
+        uid = image_path.split("\\")[-2]
+        epoch = int(best_model_path.split("_")[-1].split(".")[0])
+        # stl_save_base_path = os.path.join(entrance["save_base_path"], label_name)
+        stl_save_base_path = os.path.join(
+            entrance["save_base_path"],  
+            label_name,
+            "{}_{}_{}" .format(encoder_name, decoder_name, stragety),
+            "epoch{}_sigmoid{}" .format(epoch, str(sigmoid_threshold)),
+        )
+        if not os.path.exists(stl_save_base_path):
+            os.makedirs(stl_save_base_path)
+        stl_name = os.path.join(
+            stl_save_base_path, "{}_{}_{}_{}.stl" .format(
+                uid, encoder_name, decoder_name, time.strftime("%m%d_%H%M%S")
+            )
+        )
+        writer.SetFileName(stl_name.encode("GBK"))
+        writer.SetFileTypeToBinary()
+        writer.Update()
+
+        renderer = vtk.vtkRenderer()
+        renderWindow = vtk.vtkRenderWindow()
+        renderWindow.AddRenderer(renderer)
+        interactor = vtk.vtkRenderWindowInteractor()
+        interactor.SetRenderWindow(renderWindow)
+        renderer.AddActor(actor)
+        renderer.SetBackground(0.1, 0.2, 0.3)
+        interactor.Initialize()
+        renderWindow.Render()
+        interactor.Start()
+        end_time = time.time()
+        print("model:", load_model_time - start_time)
+        print("inference time:", inference_time - load_model_time)
+        print("3D recon time:", end_time - inference_time)
+        print("total time:", end_time - start_time)
 
 
 if __name__ == "__main__":
@@ -328,7 +373,9 @@ if __name__ == "__main__":
         # "best_model": ".\\output\\pth\\efficientnet-b4_MANet\\0321_142242\\efficientnet-b4_epoch_30.pth",
         # "best_model": "D:\share\efficientnet-b4_Unet_clip_rotated_epoch_46.pth",
         
-        # "encoder_name": "tu-regnety_040",
+        # # "encoder_name": "tu-regnety_040",
+        # "encoder_name": "timm-regnety_040",
+        # "best_model": ".\output\pth\\timm-regnety_040_Unet\clip-rotated-32x-customLR1\\0414_112637\\timm-regnety_040_Unet_clip-rotated-32x-customLR1_epoch_51.pth",
         # # "best_model": ".\\output\pth\\tu-regnety_040_MANet_rotated\\0329_182350\\tu-regnety_040_MANet_rotated_epoch_70.pth",
         # # "best_model": "D:\share\efficientnet-b4_MANet_epoch_56.pth", 
         # "best_model": ".\\output\\pth\\tu-regnety_040_MANet\\0321_173313\\tu-regnety_040_MANet_epoch_35.pth",
@@ -336,47 +383,64 @@ if __name__ == "__main__":
         # "encoder_name": "resnext101_32x4d",
         # "best_model": ".\\output\\pth\\resnext101_32x4d\\0321_092203\\resnext101_32x4d_epoch_30.pth",
         
-        "encoder_name": "mobileone_s4",
-        # "best_model": ".\\output\\pth\\mobileone_s4_Unet\\mobileone_s4_epoch_33.pth",
-        "best_model": ".\\output\\pth\\mobileone_s4_Unet\\0322_183333\\mobileone_s4_Unet_epoch_30.pth", #50
+        # "encoder_name": "mobileone_s4",
+        # # "best_model": ".\\output\\pth\\mobileone_s4_Unet\\mobileone_s4_epoch_33.pth",
+        # "best_model": ".\\output\\pth\\mobileone_s4_Unet\\0322_183333\\mobileone_s4_Unet_epoch_30.pth", #50
         # "best_model": ".\output\pth\mobileone_s4_Unet\clip-rotated-32x-customLR1\\0413_112951\mobileone_s4_Unet_clip-rotated-32x-customLR1_epoch_30.pth",
         
-        # "encoder_name": "stdc2",
-        # # # # "best_model": ".\\output\\pth\\stdc2_Unet_clip-rotated\\0331_144655\\stdc2_Unet_clip-rotated_epoch_11.pth",
-        # # # "best_model": "D:\\share\\stdc\\stdc2_Unet_clip-rotated_epoch_50.pth",
-        # # "best_model": ".\\output\\pth\\stdc2_Unet_clip-rotated\\0406_183556\\stdc2_Unet_clip-rotated_epoch_66.pth",
-        # "best_model": ".\\output\pth\stdc2_Unet\clip-rotated-32x-customLR1\\0413_101447\stdc2_Unet_clip-rotated-32x-customLR1_epoch_60.pth",
-        # "best_model": "D:\share\stdc\stdc2_Unet_clip-rotated_8x_epoch_10.pth",
+        "encoder_name": "stdc2",
+        # # # # # "best_model": ".\\output\\pth\\stdc2_Unet_clip-rotated\\0331_144655\\stdc2_Unet_clip-rotated_epoch_11.pth",
+        # "best_model": "D:\\share\\stdc\\stdc2_Unet_clip-rotated_epoch_50.pth",
+        # "best_model": "D:\share\stdc\pth\stdc2_unet\stdc2_Unet_clip-rotated_epoch_36.pth",
+        # # # "best_model": ".\\output\\pth\\stdc2_Unet_clip-rotated\\0406_183556\\stdc2_Unet_clip-rotated_epoch_66.pth",
+        # # "best_model": ".\\output\pth\stdc2_Unet\clip-rotated-32x-customLR1\\0413_101447\stdc2_Unet_clip-rotated-32x-customLR1_epoch_60.pth",
+        # # "best_model": "D:\share\stdc\stdc2_Unet_clip-rotated_8x_epoch_10.pth",
+        # "best_model": "D:\share\stdc\pth\stdc2_Unet_clip-rotated-8x-OneCycleLR_epoch_5.pth",
+        # "best_model": "D:\share\stdc\pth\stdc2_Unet_clip-rotated-16x-customLR1_epoch_44.pth",
+        # "best_model": "D:\share\stdc\pth\stdc2_MANet_noclip-rotated_epoch_22.pth",
+        # "best_model": ".\output\pth\stdc2_Unet\clip-rotated-32x-customLR1\\0423_110239\stdc2_Unet_clip-rotated-32x-customLR1_epoch_56.pth",
+        # "best_model": "D:\share\stdc\pth\stdc2_MANet_clip-rotated_epoch_21.pth",
+        # "best_model": "D:\share\AttUnet\pth\stdc2_AttentionUnet_clip-rotated-focal-OneCycleLR-32x-OneCycleLR_epoch_12.pth",
+        # "best_model": ".\output\pth\stdc2_Unet\clip-rotated-32x-customLR1\\0426_144612\stdc2_Unet_clip-rotated-32x-customLR1_epoch_23.pth",
+        # "best_model": ".\output\pth\stdc2_Unet\clip-rotated-32x-customLR1\\0427_132240\stdc2_Unet_clip-rotated-32x-customLR1_epoch_52.pth",
+        # "best_model": ".\output\pth\stdc2_Unet\clip-rotated-32x-customLR1\\0427_164303\stdc2_Unet_clip-rotated-32x-customLR1_epoch_57.pth",
+        "best_model": "D:\share\stdc\pth\\16x\stdc2_Unet_clip-rotated-16x-customLR1_epoch_19.pth",
+
 
         # "encoder_name": "stdc1",
-        # # "best_model": ".\output\pth\stdc1_Unet_clip-rotated\\0410_150828\stdc1_Unet_clip-rotated_epoch_4.pth",
-        # "best_model": ".\output\pth\stdc1_Unet_clip-rotated\\0412_132929\stdc1_Unet_clip-rotated_epoch_59.pth",
-        # # "best_model": ".\output\pth\stdc1_Unet_clip-rotated\\0412_112630\stdc1_Unet_clip-rotated_epoch_59.pth",
+        # # # "best_model": ".\output\pth\stdc1_Unet_clip-rotated\\0410_150828\stdc1_Unet_clip-rotated_epoch_4.pth",
+        # # "best_model": ".\output\pth\stdc1_Unet_clip-rotated\\0412_132929\stdc1_Unet_clip-rotated_epoch_59.pth",
+        # # # "best_model": ".\output\pth\stdc1_Unet_clip-rotated\\0412_112630\stdc1_Unet_clip-rotated_epoch_59.pth",
+        # "best_model": "D:\share\stdc\pth\stdc1_Unet_clip-rotated-8x-OneCycleLR_epoch_8.pth",
 
-        "decoder_name": "Unet", #"MANet", #
+        "decoder_name": "Unet", #"AttentionUnet", #"AttentionUnet", #"MANet", #
         "device": "cuda:0",
         "test_base_path": "D:\\project\\TrueHealth\\20230217_Alg1\\data\\examples\\src_seg\\val",
-        "image_path": "D:\\project\\TrueHealth\\20230217_Alg1\\data\\examples\\src_seg\\val\\20170831-000005\\dicom",
-        
-        "windowlevel": -600,
-        "windowwidth": 2000,
+        # "image_path": "D:\\project\\TrueHealth\\20230217_Alg1\\data\\examples\\src_seg\\val\\20170831-000005\\dicom",
+        "image_path": "D:\project\TrueHealth\\20230217_Alg1\data\examples\src_seg\zhiqiguan_test\PA1\dicom",
 
-        # "windowlevel": -850,
-        # "windowwidth": 310,
+        "image_base_path": "D:\project\TrueHealth\\20230217_Alg1\data\examples\src_seg\zhiqiguan_test",
+        
+        # "windowlevel": -600,
+        # "windowwidth": 2000,
+
+        "windowlevel": -850,
+        "windowwidth": 310,
 
         # "windowlevel": 0,
         # "windowwidth": 2000,
 
         "middle_patch_size": 512,
-        "classes": ["lung"], # ["zhiqiguan"],# , ["lung", "skin", "heart"], #
+        "classes": ["zhiqiguan"],# , ["lung", "skin", "heart"], #["lung"], # 
         "in_channels": 1,
         "num_workers": 8,  # 多线程加载所需要的线程数目
         "pin_memory": True,  # 数据从CPU->pin_memory—>GPU加速
         "batch_size": 4,
         "save_base_path": "D:\project\TrueHealth\git\segmentation_models.pytorch\output\stl",
 
-        "output_stride": 32,
-
+        "output_stride": 16,
+        "stragety": "clip-rotated-32x-customLR", #"clip-rotated-32x-focal", #
+        "sigmoid_threshold": 0.5,
         # "vis_graph": True,
     } 
 
@@ -392,6 +456,6 @@ if __name__ == "__main__":
         # transform=transform,
         status=False
     )
-    test(test_dataset, **entrance)
-    # generate_stl(**entrance)
+    # test(test_dataset, **entrance)
+    generate_stl(**entrance)
     print("Happy End!")

@@ -48,6 +48,7 @@ from segmentation_models_pytorch.utils.optimizers import(
 )
 from segmentation_models_pytorch.utils.customLR import Custom1 as CustomLR1
 from input_config import entrance
+from segmentation_models_pytorch.utils.base import SumOfLosses
 
 
 def parse(kwargs):
@@ -71,6 +72,7 @@ def train(train_dataset, val_dataset, **entrance):
     num_classes = len(entrance["classes"])
     model = smp.Unet(
     # model = smp.MAnet(
+    # model = smp.AttentionUnet(
         encoder_name=encoder_name,  # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
         encoder_weights=None, # use `imagenet` pre-trained weights for encoder initialization
         # in_channels=entrance["in_channels"], # model input channels (1 for gray-scale images, 3 for RGB, etc.)
@@ -118,6 +120,7 @@ def train(train_dataset, val_dataset, **entrance):
     max_epoch = entrance["max_epoch"]
     scheduler_name = entrance["scheduler_name"]
     mode = entrance["mode"]
+    optimizer_name = entrance["optimizer_name"]
 
     optimizers = {
         "sgd": get_sgd_optimizer(
@@ -133,37 +136,40 @@ def train(train_dataset, val_dataset, **entrance):
             model, lr, weight_decay=weight_decay,
         )
     }
-    optimizer = optimizers[entrance["optimizer_name"]]
-
-    schedulers = {
-        # "stepLR": torch.optim.lr_scheduler.StepLR(
-        #     optimizer, step_size, gamma=gamma, last_epoch=-1
-        # ),
-        # "exponentialLR": t.optim.lr_scheduler.ExponentialLR(optimizer, gamma=gamma),
-        "customLR1": CustomLR1(
-            # loss_meter=loss_meter,
+    optimizer = optimizers[optimizer_name]
+    if scheduler_name == "customLR1":
+        scheduler = CustomLR1(
             lr=lr,
             pre_loss=pre_loss,
             optimizer=optimizer,
             lr_decay=entrance["lr_decay"],
             min_lr=entrance["min_lr"],
-        ),
-        "OneCycleLR": torch.optim.lr_scheduler.OneCycleLR(
-            optimizer, max_lr=lr, steps_per_epoch=len(dataloader), epochs=max_epoch
-        ),
-        "Cosine": torch.optim.lr_scheduler.CosineAnnealingLR(
+        )
+    elif scheduler_name == "Cosine":
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             optimizer, T_max=max_epoch
-        ),
-    }
-    scheduler = schedulers[scheduler_name]
+        )
+    elif scheduler_name == "OneCycleLR":
+        scheduler = torch.optim.lr_scheduler.OneCycleLR(
+            optimizer, max_lr=lr, steps_per_epoch=len(dataloader), epochs=max_epoch
+        )
+    elif scheduler_name == "StepLR":
+        torch.optim.lr_scheduler.StepLR(
+            optimizer, step_size, gamma=gamma, last_epoch=-1
+        )
+    elif scheduler_name == "exponentialLR":
+        torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=gamma)
+    else:
+        print("Please provide scheduler for LR!!!")
+    # print(scheduler)
+
 
     criterions = {
-        "bce": BCELoss(), #BCEWithLogitsLoss(), #
-        # "dice": DiceLoss(eps=1e-7, beta=1.0, activation=None, ignore_channels=None),
-        # "focal": FocalLoss(apply_nonlin=torch.nn.Softmax(dim=1)),
+        "bce": BCELoss(), #BCEWithLogitsLoss(), 
         "dice": DiceLoss1(mode=mode,),
         "focal": FocalLoss(mode=mode, alpha=0.25,),
         "wbce": BCEWithLogitsLoss(pos_weight=torch.tensor([10])),
+        "sum": SumOfLosses(DiceLoss1(mode=mode,), BCEWithLogitsLoss())
     }
 
     ## ==================start to train===================
@@ -172,6 +178,11 @@ def train(train_dataset, val_dataset, **entrance):
     criterion = criterions[loss_function]
     metrics = [IoU(), Fscore(), Precision(), Recall(), Accuracy()]
     device = torch.device(entrance["device"] if torch.cuda.is_available() else "cpu")
+
+    print(f"lr: {lr}, momentum: {momentum}, weight_decay: {weight_decay},\
+        loss: {criterion}, scheduler: {scheduler}"
+    ) #optimizer: {optimizer},
+
     train_epoch = TrainEpoch(
         model,
         criterion, #loss
@@ -190,6 +201,7 @@ def train(train_dataset, val_dataset, **entrance):
     timestamp = time.strftime(tfmt)
     for epoch in range(initial_epoch, max_epoch):
         print('\nEpoch: {}'.format(epoch))
+        print("current lr: {}". format(scheduler.get_lr()))
         log_save_base_path = os.path.join(
             entrance["save_base_path"],
             entrance["log_folder"],
@@ -230,56 +242,31 @@ def train(train_dataset, val_dataset, **entrance):
         ## valid
         valid_logs = valid_obj.custom_run(val_dataloader, epoch, log_filename)
 
-        scheduler.step(train_logs[criterion.__name__])
-        # print(train_logs[criterion.__name__], avg_loss)
-
-        # keras.callbacks.ReduceLROnPlateau
-        # torch.optim.lr_scheduler.ReduceLROnPlateau
-        # if loss_meter.value()[0] > pre_loss * 1.0:
-        # if train_logs["bce_loss"] > pre_loss * 1.0:
-        #     old_lr = lr
-        #     lr = lr * entrance["lr_decay"]
-        #     print("lr decay called: from {} to {}" .format(old_lr, lr))
-        #     for param_group in optimizer.param_groups:
-        #         param_group["lr"] = lr
-        # pre_loss = train_logs["bce_loss"] #loss_meter.value()[0]
-        # if lr < entrance["min_lr"]:
-        #     break
+        if isinstance(scheduler, CustomLR1):
+            scheduler.step(train_logs[criterion.__name__])
+        else:
+            scheduler.step()
 
         # custom_scheduler
-        print("current lr: {}".format(scheduler.lr))
+        print("current lr: {}". format(scheduler.get_lr()))
         if hasattr(scheduler, "should_break") and scheduler.should_break():
             print(f"Break because {scheduler} said so.")
             break
 
 
 def main(entrance):
-
-    # transfrom = transforms.Compose([
-    #     transforms.Affine(degrees=(0, 360)),
-    #     transforms.ConvertImageDtype(torch.float),
-    #     transforms.Normalize(entrance["windowlevel"], entrance["windowwidth"]),
-    #     transforms.ConvertImageDtype(torch.float),
-    # ])
-
-    # target_transform = transforms.Compose([
-    #     transforms.Affine(degrees=(0, 360)),
-    #     transforms.ConvertImageDtype(torch.float),
-    #     transforms.RandomErasing(),
-    # ])
-    # train_transform = A.Compose([
-    #     A.ShiftScaleRotate(shift_limit=0.2, scale_limit=0.2, rotate_limit=30, p=0.5),
-    #     A.Normalize(entrance["windowlevel"], entrance["windowwidth"]),
-    #     ToTensorV2(),
-    # ])
-
+    width, heigth = entrance["middle_patch_size"], entrance["middle_patch_size"]
     transform = A.Compose([
         A.HorizontalFlip(p=0.5),
         A.VerticalFlip(p=0.5),
         A.OneOf([
             # noise
-            # A.IAAAdditiveGaussianNoise(), 
             A.GaussNoise(),
+        ], p=0.2),
+        A.OneOf([
+            A.RandomContrast(),
+            A.RandomGamma(),
+            A.RandomBrightness(),
         ], p=0.2),
         A.OneOf([
             # blur
@@ -289,12 +276,11 @@ def main(entrance):
             A.Blur(blur_limit=3, p=0.1),
         ], p=0.2),
         A.OneOf([
-            A.ElasticTransform(alpha=120, sigma=120 * 0.05, alpha_affine=120 * 0.03),
+            A.ElasticTransform(alpha=width * 2, sigma=width * 0.08, alpha_affine=width * 0.08),
             A.GridDistortion(),
-            A.OpticalDistortion(distort_limit=2, shift_limit=0.5),
+            A.OpticalDistortion(distort_limit=1, shift_limit=0.5),
         ], p=0.2),
-        A.ShiftScaleRotate(shift_limit=0.0625, scale_limit=0, rotate_limit=(0,360), p=0.2),
-        # A.RandomBrightnessContrast(p=0.2),   # 随机明亮对比度
+        A.ShiftScaleRotate(rotate_limit=180, p=0.5),
     ])
     
     train_dataset = SegDataset1(
@@ -304,8 +290,9 @@ def main(entrance):
         width=entrance["middle_patch_size"],
         windowlevel=entrance["windowlevel"],
         windowwidth=entrance["windowwidth"],
-        transform=None
-        # transform=transform
+        transform=None,
+        # transform=transform,
+        # status=False,
     )
     val_dataset = SegDataset1(
         base_path=entrance["valid_base_path"],
@@ -314,7 +301,7 @@ def main(entrance):
         width=entrance["middle_patch_size"],
         windowlevel=entrance["windowlevel"],
         windowwidth=entrance["windowwidth"],
-        transform=None
+        transform=None,
         # transform=transform
     )
     train(train_dataset, val_dataset, **entrance)

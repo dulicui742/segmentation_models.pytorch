@@ -8,7 +8,7 @@ class Custom1:
         self.min_lr = min_lr
 
     def step(self, loss_value):
-        self.loss_value = loss_value
+        # self.loss_value = loss_value
         if loss_value > self.pre_loss * 1.0:
             old_lr = self.lr
             self.lr = self.lr * self.lr_decay
@@ -19,6 +19,9 @@ class Custom1:
 
     def should_break(self) -> bool:
         return self.lr < self.min_lr
+    
+    def get_lr(self):
+        return self.lr, self.optimizer.param_groups[0]["lr"]
 
     def __repr__(self):
         return f"""{self.__class__.__name__}(
@@ -27,5 +30,5 @@ class Custom1:
             min_lr={self.min_lr},
             pre_loss={self.pre_loss},
             optimizer={self.optimizer},
-            loss_meter={self.loss_value},
+            loss_meter={self.pre_loss},
         )"""
