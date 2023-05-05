@@ -47,8 +47,9 @@ from segmentation_models_pytorch.utils.optimizers import(
     get_adamW_optimizer,
 )
 from segmentation_models_pytorch.utils.customLR import Custom1 as CustomLR1
-from input_config import entrance
 from segmentation_models_pytorch.utils.base import SumOfLosses
+from input_config import entrance as cfg1
+from input_config2 import Config as cfg2
 
 
 def parse(kwargs):
@@ -198,45 +199,55 @@ def train(train_dataset, val_dataset, **entrance):
         device=device,
     )
 
-    timestamp = time.strftime(tfmt)
+    env = entrance["env"]   
+    if env:
+        timestamp = entrance["timestamp"]
+        log_save_base_path = entrance["log_save_base_path"]
+        pth_save_base_path = os.path.join(entrance["pth_save_base_path"], timestamp)
+    else:
+        timestamp = time.strftime(tfmt)
+        log_save_base_path = os.path.join(
+            entrance["save_base_path"],
+            "{}_{}". format(encoder_name, decoder_name),
+            "{}-{}-{}x" .format(stragety, scheduler_name, output_stride),
+            entrance["log_folder"],
+        )
+        pth_save_base_path = os.path.join(
+        entrance["save_base_path"], 
+        "{}_{}". format(encoder_name, decoder_name),
+        "{}-{}-{}x" .format(stragety, scheduler_name, output_stride),
+        entrance["pth_folder"],
+        timestamp
+    )
+
+    if not os.path.exists(log_save_base_path):
+        os.makedirs(log_save_base_path)
+    if not os.path.exists(pth_save_base_path):
+        os.makedirs(pth_save_base_path)
+
+    log_filename = os.path.join(
+        log_save_base_path,
+        # "{}_{}_{}-{}x-{}_logs_{}.json".format(
+        #     encoder_name, decoder_name, stragety, output_stride, scheduler_name, timestamp
+        # )
+        f"logs_{timestamp}.json",
+    )
+
     for epoch in range(initial_epoch, max_epoch):
         print('\nEpoch: {}'.format(epoch))
         print("current lr: {}". format(scheduler.get_lr()))
-        log_save_base_path = os.path.join(
-            entrance["save_base_path"],
-            entrance["log_folder"],
-            "{}_{}". format(encoder_name, decoder_name),
-            "{}-{}x-{}" .format(stragety, output_stride, scheduler_name),
-        )
-        if not os.path.exists(log_save_base_path):
-            os.makedirs(log_save_base_path)
 
-        log_filename = os.path.join(
-            log_save_base_path,
-            "{}_{}_{}-{}x-{}_logs_{}.json".format(
-                encoder_name, decoder_name, stragety, output_stride, scheduler_name, timestamp
-            )
-        )
         # logs = train_epoch.run(dataloader)
         train_logs = train_epoch.custom_run(dataloader, epoch, log_filename)
 
         ## to save model
-        pth_save_base_path = os.path.join(
-            entrance["save_base_path"], 
-            entrance["pth_folder"],
-            "{}_{}". format(encoder_name, decoder_name),
-            "{}-{}x-{}" .format(stragety, output_stride, scheduler_name),
-            timestamp
-        )
-        if not os.path.exists(pth_save_base_path):
-            os.makedirs(pth_save_base_path)
         pth_filename = os.path.join(
             pth_save_base_path,
-            "{}_{}_{}-{}x-{}_epoch_{}.pth".format(
-                encoder_name, decoder_name, stragety, output_stride, scheduler_name, epoch
-            )
+            # "{}_{}_{}-{}x-{}_epoch_{}.pth".format(
+            #     encoder_name, decoder_name, stragety, output_stride, scheduler_name, epoch
+            # )
+            f"epoch_{timestamap}_{epoch}",
         )
-
         torch.save(model.state_dict(), pth_filename)
 
         ## valid
@@ -308,5 +319,12 @@ def main(entrance):
 
 
 if __name__ == "__main__":
+    if os.environ["USE_JSON"]:
+        opt = cfg2.init_from_env()
+        entrance = opt.to_dict()
+        entrance["env"] = True
+    else:
+        entrance = cfg1
+        entrance["env"] = False
     main(entrance)
     print("end")
