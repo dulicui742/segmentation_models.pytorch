@@ -72,34 +72,33 @@ def visualize(images):
     plt.pause(1)
 
 
-def load_model(encoder_name, decoder_name, model_path, device, in_channels=1, classes=1, output_stride=32):
+def load_model(
+    encoder_name, 
+    decoder_name, 
+    model_path, 
+    device, 
+    in_channels=1, 
+    classes=1, 
+    output_stride=32,
+    decoder_attention_type=None,
+):
     ## 实例化
-    if decoder_name == "Unet":
-        model = smp.Unet(
-            encoder_name=encoder_name,  
-            encoder_weights=None, 
-            in_channels=in_channels, 
-            classes=classes,
-            output_stride=output_stride
-        ).to(device)
-    elif decoder_name == "MANet":
-        model = smp.MANet(
-            encoder_name=encoder_name,  
-            encoder_weights=None, 
-            in_channels=in_channels, 
-            classes=classes,
-            output_stride=output_stride
-        ).to(device)
-    elif decoder_name == "AttentionUnet":
-        model = smp.AttentionUnet(
-            encoder_name=encoder_name,  
-            encoder_weights=None, 
-            in_channels=in_channels, 
-            classes=classes,
-            output_stride=output_stride
-        ).to(device)
+    if decoder_name == "Unet" or decoder_name == "AttentionUnet":
+        kwargs = {
+        "output_stride": output_stride, 
+        "decoder_attention_type": decoder_attention_type, 
+    }
     else:
-        print("===========decoder invalid!!!============")
+        kwargs = {}
+
+    model = smp.create_model(
+        arch=decoder_name,
+        encoder_name=encoder_name,
+        encoder_weights=None,
+        in_channels=in_channels,
+        classes=classes,
+        **kwargs,
+    ).to(device)
 
     ## load model parameters
     state_dict = torch.load(model_path)

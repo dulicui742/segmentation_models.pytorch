@@ -71,16 +71,23 @@ def train(train_dataset, val_dataset, **entrance):
     stragety = entrance["stragety"]
     output_stride = entrance["output_stride"]
     num_classes = len(entrance["classes"])
-    model = smp.Unet(
-    # model = smp.MAnet(
-    # model = smp.AttentionUnet(
-        encoder_name=encoder_name,  # choose encoder, e.g. mobilenet_v2 or efficientnet-b7
-        encoder_weights=None, # use `imagenet` pre-trained weights for encoder initialization
-        # in_channels=entrance["in_channels"], # model input channels (1 for gray-scale images, 3 for RGB, etc.)
-        classes=num_classes,  # model output channels (number of classes in your dataset)
-        in_channels=1, # model input channels (1 for gray-scale images, 3 for RGB, etc.)
-        # classes=1,
-        output_stride=output_stride,
+    decoder_attention_type = entrance["decoder_atttention_type"]
+    
+    if decoder_name == "Unet" or decoder_name == "AttentionUnet":
+        kwargs = {
+        "output_stride": output_stride, 
+        "decoder_attention_type": decoder_attention_type, 
+    }
+    else:
+        kwargs = {}
+
+    model = smp.create_model(
+        arch=decoder_name,
+        encoder_name=encoder_name,
+        encoder_weights=None,
+        in_channels=1,
+        classes=num_classes,
+        **kwargs,
     )
 
     ## ===============load pretrained model===============

@@ -29,6 +29,7 @@ entrance = {
     # "encoder_name": "timm-regnety_040", #regnety_040
     "encoder_name": "stdc2", ## stdc2
     "decoder_name": "Unet", #"MANet", #
+    "decoder_atttention_type": None,
     "stragety": "clip-rotated", #"normal-rotated", #
     "pretrained_model": None,
     # "pretrained_model": ".\output\pth\stdc2_Unet\clip-rotated-32x-customLR1\\0413_090007\stdc2_Unet_clip-rotated-32x-customLR1_epoch_22.pth",
@@ -36,6 +37,8 @@ entrance = {
     # "pretrained_model": ".\\output\\pth\\resnext101_32x4d\\0321_092203\\resnext101_32x4d_epoch_30.pth",
     # "pretrained_model": ".\\output\\pth\\tu-regnety_040_MANet\\0321_172201\\tu-regnety_040_MANet_epoch_0.pth",
     # dataloader config
+
+    
     "shuffle": True,  # 是否需要打乱数据
     "num_workers": 4,  # 多线程加载所需要的线程数目
     "pin_memory": True,  # 数据从CPU->pin_memory—>GPU加速
