@@ -63,10 +63,11 @@ local stragety(
 local save_path(
     base_path="./output", 
     name="pth", 
+    classname="Sphere",
     encoder_name="stdc2", 
     decoder_name="Unet", 
     stragety="clip-rotated",
-) = base_path + "/" + encoder_name + "_" + decoder_name + "/" + stragety + "/" + name ;
+) = base_path  + "/" + name + "/" +classname + "/" + encoder_name + "_" + decoder_name + "/" + stragety;
 
 
 function(

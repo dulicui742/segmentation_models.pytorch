@@ -72,17 +72,34 @@ def visualize(images):
     plt.pause(1)
 
 
-def load_model(encoder_name, model_path, device, in_channels=1, classes=1, output_stride=32):
+def load_model(encoder_name, decoder_name, model_path, device, in_channels=1, classes=1, output_stride=32):
     ## 实例化
-    model = smp.Unet(
-    # model = smp.MAnet(
-    # model = smp.AttentionUnet(
-        encoder_name=encoder_name,  
-        encoder_weights=None, 
-        in_channels=in_channels, 
-        classes=classes,
-        output_stride=output_stride
-    ).to(device)
+    if decoder_name == "Unet":
+        model = smp.Unet(
+            encoder_name=encoder_name,  
+            encoder_weights=None, 
+            in_channels=in_channels, 
+            classes=classes,
+            output_stride=output_stride
+        ).to(device)
+    elif decoder_name == "MANet":
+        model = smp.MANet(
+            encoder_name=encoder_name,  
+            encoder_weights=None, 
+            in_channels=in_channels, 
+            classes=classes,
+            output_stride=output_stride
+        ).to(device)
+    elif decoder_name == "AttentionUnet":
+        model = smp.AttentionUnet(
+            encoder_name=encoder_name,  
+            encoder_weights=None, 
+            in_channels=in_channels, 
+            classes=classes,
+            output_stride=output_stride
+        ).to(device)
+    else:
+        print("===========decoder invalid!!!============")
 
     ## load model parameters
     state_dict = torch.load(model_path)
@@ -125,6 +142,7 @@ def test(test_dataset, **entrance):
     )
 
     encoder_name = entrance["encoder_name"]
+    decoder_name = entrance["decoder_name"]
     device = torch.device(entrance["device"] if torch.cuda.is_available() else "cpu")
     model_path = entrance["best_model"]
     classes = entrance["classes"]
@@ -132,6 +150,7 @@ def test(test_dataset, **entrance):
     output_stride = entrance["output_stride"]
     model = load_model(
         encoder_name, 
+        decoder_name,
         model_path, 
         device, 
         in_channels=1, 
@@ -200,6 +219,7 @@ def generate_stl(**entrance):
     # best_model = load_model(encoder_name, best_model_path, device)
     best_model = load_model(
         encoder_name, 
+        decoder_name,
         best_model_path, 
         device, 
         in_channels=1, 
@@ -404,7 +424,9 @@ if __name__ == "__main__":
         # "best_model": ".\output\pth\stdc2_Unet\clip-rotated-32x-customLR1\\0426_144612\stdc2_Unet_clip-rotated-32x-customLR1_epoch_23.pth",
         # "best_model": ".\output\pth\stdc2_Unet\clip-rotated-32x-customLR1\\0427_132240\stdc2_Unet_clip-rotated-32x-customLR1_epoch_52.pth",
         # "best_model": ".\output\pth\stdc2_Unet\clip-rotated-32x-customLR1\\0427_164303\stdc2_Unet_clip-rotated-32x-customLR1_epoch_57.pth",
-        "best_model": "D:\share\stdc\pth\\16x\stdc2_Unet_clip-rotated-16x-customLR1_epoch_19.pth",
+        # "best_model": "D:\share\stdc\pth\\16x\stdc2_Unet_clip-rotated-16x-customLR1_epoch_19.pth",
+        # "best_model": "D:\share\stdc\ck\stdc2_MANet_clip-rotated-focalloss_epoch_12.pth",
+        "best_model": "D:\share\stdc\pth\stdc2_unet\stdc2_Unet_clip-rotated-32x-customLR1_epoch_18.pth", #zhiqiguan
 
 
         # "encoder_name": "stdc1",
@@ -413,7 +435,7 @@ if __name__ == "__main__":
         # # # "best_model": ".\output\pth\stdc1_Unet_clip-rotated\\0412_112630\stdc1_Unet_clip-rotated_epoch_59.pth",
         # "best_model": "D:\share\stdc\pth\stdc1_Unet_clip-rotated-8x-OneCycleLR_epoch_8.pth",
 
-        "decoder_name": "Unet", #"AttentionUnet", #"AttentionUnet", #"MANet", #
+        "decoder_name": "Unet", #"AttentionUnet", #"MANet", #
         "device": "cuda:0",
         "test_base_path": "D:\\project\\TrueHealth\\20230217_Alg1\\data\\examples\\src_seg\\val",
         # "image_path": "D:\\project\\TrueHealth\\20230217_Alg1\\data\\examples\\src_seg\\val\\20170831-000005\\dicom",
@@ -438,8 +460,8 @@ if __name__ == "__main__":
         "batch_size": 4,
         "save_base_path": "D:\project\TrueHealth\git\segmentation_models.pytorch\output\stl",
 
-        "output_stride": 16,
-        "stragety": "clip-rotated-32x-customLR", #"clip-rotated-32x-focal", #
+        "output_stride": 32,
+        "stragety": "clip-rotated-32x-customLR-wd1e5", #"clip-rotated-32x-focal", #
         "sigmoid_threshold": 0.5,
         # "vis_graph": True,
     } 
