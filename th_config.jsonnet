@@ -18,32 +18,32 @@ local class1_Sphere = {
 local checkArgs(args) =
   // TODO: check loss_function
   assert std.member([
-    'JaccardLoss',
-    'DiceLoss',
-    'BCELoss',
-    'FocalLoss',
-    'DiceLoss1',
-    'BCEWithLogitsLoss',
+    "dice",
+    "bce",
+    "focal",
+    "wbce",
+    "dice-focal",
+    "dice-bce",
   ], args.loss_function): "=======" + "loss: " + args.loss_function + " is invalid======";
   assert std.member([
-    'rms',
-    'sgd',
-    'adam',
-    'adamW',
+    "rms",
+    "sgd",
+    "adam",
+    "adamW",
   ], args.optimizer_name): "=======" + "opt: " + args.optimizer_name + " is invalid======";
   assert std.member([
-    'stepLR',
-    'exponentialLR',
-    'customLR1',
-    'OneCycleLR',
+    "stepLR",
+    "exponentialLR",
+    "customLR1",
+    "OneCycleLR",
   ], args.scheduler_name): "=======" + "scheduler: " + args.scheduler_name + " is invalid======";
   // return
   {};
 
 
 local switchDataset(classname, info={}) = if std.member(["Sphere", "Bronchial"], classname) then {
-  'Bronchial': class1_Bronchial,
-  'Sphere': class1_Sphere,
+  "Bronchial": class1_Bronchial,
+  "Sphere": class1_Sphere,
   // 下面一步直接做到null就不要了
 }[std.toString(classname)] + std.prune(info)
 else
@@ -85,8 +85,8 @@ function(
     in_channels=1,
 
     // encoder and decoder
-    encoder_name='stdc2',
-    decoder_name='Unet',
+    encoder_name="stdc2",
+    decoder_name="Unet",
 
     // train/valid data 
     classname="Bronchial",
@@ -115,7 +115,7 @@ function(
     momentum=0.9,
     eps=1,  // DeepPATH  RMSPROP_EPSILON = 1.0
 
-    gamma=0.16,  // learning_rate_decay_factor', 0.16  StepLR
+    gamma=0.16,  // learning_rate_decay_factor", 0.16  StepLR
     step_size=30,  //没经过30个epoch，lr衰减一次
 
     max_epoch=80,
@@ -124,20 +124,20 @@ function(
     lr_decay=0.5,  // 当一个epoch的损失开始上升lr = lr*lr_decay
 
 
-    loss_function='FocalLoss',  // 损失函数,对应于models.loss.py中的函数名
+    loss_function="focal",  // 损失函数,对应于models.loss.py中的函数名
     pretrained_model=null,
 
     // new configs
     is_training=null,  // 影响input_config2.Config的逻辑
 
     // optimizer_name
-    optimizer_name='adam',
+    optimizer_name="adam",
 
     // scheduler_name
-    scheduler_name='customLR1',
+    scheduler_name="customLR1",
 
     // git commit for debug purpose
-    git_commit='not-specified',
+    git_commit="not-specified",
 ) {
     classInput: switchDataset(classname, {
         classes: classes,
@@ -181,7 +181,7 @@ function(
                             output_stride=output_stride
                     ),
 
-        in_channles: in_channels,
+        in_channels: in_channels,
         pth_save_base_path: save_path(
                             stragety=self.stragety, 
                             name="pth",
@@ -198,14 +198,15 @@ function(
     errors: checkArgs(self.args),
 
     otherInfo: {
-        code: 'th',
+        code: "th",
     },
 
     debugInfo: {
-    '   --debug--': {
+    "   --debug--": {
         git_commit: git_commit,
         classname: classname,
     },
     },
-    final: self.args + self.classInput + self.otherInfo + self.errors + self.debugInfo,
+    final: self.args + self.classInput + self.errors + self.debugInfo,
+    // + self.otherInfo 
 }.final

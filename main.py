@@ -122,6 +122,7 @@ def train(train_dataset, val_dataset, **entrance):
     ##=====================optimizer/loss=================
     pre_loss = 100
     lr = entrance["lr"]
+    lr_decay = entrance["lr_decay"]
     weight_decay = entrance["weight_decay"]
     momentum = entrance["momentum"]
     eps = entrance["eps"]
@@ -177,7 +178,8 @@ def train(train_dataset, val_dataset, **entrance):
         "dice": DiceLoss1(mode=mode,),
         "focal": FocalLoss(mode=mode, alpha=0.25,),
         "wbce": BCEWithLogitsLoss(pos_weight=torch.tensor([10])),
-        "sum": SumOfLosses(DiceLoss1(mode=mode,), BCEWithLogitsLoss())
+        "dice-bce": SumOfLosses(DiceLoss1(mode=mode,), BCEWithLogitsLoss()),
+        "dice-focal": SumOfLosses(DiceLoss1(mode=mode,), FocalLoss(mode=mode, alpha=0.25,))
     }
 
     ## ==================start to train===================
@@ -187,9 +189,9 @@ def train(train_dataset, val_dataset, **entrance):
     metrics = [IoU(), Fscore(), Precision(), Recall(), Accuracy()]
     device = torch.device(entrance["device"] if torch.cuda.is_available() else "cpu")
 
-    print(f"lr: {lr}, momentum: {momentum}, weight_decay: {weight_decay},\
-        loss: {criterion}, scheduler: {scheduler}"
-    ) #optimizer: {optimizer},
+    print(f"lr: {lr}, lr_decay: {lr_decay}, momentum: {momentum}, weight_decay: {weight_decay},\
+        loss: {criterion}, optimizer: {optimizer}, scheduler: {scheduler}"
+    ) 
 
     train_epoch = TrainEpoch(
         model,
@@ -253,7 +255,7 @@ def train(train_dataset, val_dataset, **entrance):
             # "{}_{}_{}-{}x-{}_epoch_{}.pth".format(
             #     encoder_name, decoder_name, stragety, output_stride, scheduler_name, epoch
             # )
-            f"epoch_{timestamap}_{epoch}",
+            f"epoch_{timestamp}_{epoch}",
         )
         torch.save(model.state_dict(), pth_filename)
 

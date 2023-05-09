@@ -214,6 +214,8 @@ def generate_stl(**entrance):
     output_stride = entrance["output_stride"]
     stragety = entrance["stragety"]
     sigmoid_threshold = entrance["sigmoid_threshold"]
+    timestamp = "_".join(best_model_path.split("\\")[-1].split("_")[-3:-1])
+    print("ts:", timestamp)
 
     # best_model = load_model(encoder_name, best_model_path, device)
     best_model = load_model(
@@ -227,7 +229,7 @@ def generate_stl(**entrance):
     )
     load_model_time = time.time()
 
-
+    time_dict = {}
     uids = os.listdir(image_base_path)
     for uid in uids:
         start_infernce = time.time()
@@ -244,6 +246,7 @@ def generate_stl(**entrance):
 
         print("\n------------------------------")
         print("dealing with: {}" .format(uid))
+        time_dict[uid] = {}
 
         image_path = os.path.join(image_base_path, uid, "dicom")
         dicomreader = vtk.vtkDICOMImageReader()
@@ -269,7 +272,8 @@ def generate_stl(**entrance):
             # cv2.imshow("img", img/255)
             # params = {"image": img}
             # visualize(**params)
-            img = img.reshape((1, dimensions[1], dimensions[0]))
+            # img = img.reshape((1, dimensions[1], dimensions[0]))
+            img = img[np.newaxis,:,:]
             x_tensor = torch.from_numpy(img).to(device).unsqueeze(0).float()
             preds = best_model.predict(x_tensor)  # 预测图
             preds = torch.sigmoid(preds)
@@ -280,9 +284,10 @@ def generate_stl(**entrance):
             # preds[preds > 0.1] = 1
             # params = {"pred0": preds}
             # visualize(**params)
-            tmp = copyArray[i, ::-1, :] + preds * 1 #pix
-            copyArray[i, ::-1, :] += np.clip(tmp, 0, 1) #pix
-            # copyArray[i, ::-1, :] += tmp #pix
+
+            # tmp = copyArray[i, ::-1, :] + preds * 1 #pix
+            # copyArray[i, ::-1, :] += np.clip(tmp, 0, 1) #pix
+            copyArray[i, ::-1, :] = np.clip(preds, 0, 1)
 
             # params = {"pred0": preds}
             # visualize(**params)
@@ -350,7 +355,9 @@ def generate_stl(**entrance):
         stl_save_base_path = os.path.join(
             entrance["save_base_path"],  
             label_name,
-            "{}_{}_{}" .format(encoder_name, decoder_name, stragety),
+            "{}_{}" .format(encoder_name, decoder_name),
+            stragety,
+            timestamp,
             "epoch{}_sigmoid{}" .format(epoch, str(sigmoid_threshold)),
         )
         if not os.path.exists(stl_save_base_path):
@@ -376,9 +383,37 @@ def generate_stl(**entrance):
         interactor.Start()
         end_time = time.time()
         print("model:", load_model_time - start_time)
-        print("inference time:", inference_time - load_model_time)
+        # print("inference time:", inference_time - load_model_time)
+        print("inference time:", inference_time - start_infernce)
         print("3D recon time:", end_time - inference_time)
-        print("total time:", end_time - start_time)
+        # print("total time:", end_time - start_time)
+        print("total time:", end_time - start_infernce + (load_model_time - start_time))
+
+        time_dict[uid]["slice Num"] = dimensions[2]
+        time_dict[uid]["Load Model"] = round(load_model_time - start_time, 3)
+        time_dict[uid]["Inference"] = round(inference_time - start_infernce, 3)
+        time_dict[uid]["3D Recon"] = round(end_time - inference_time, 3)
+        time_dict[uid]["Total"] = round(end_time - start_infernce + (load_model_time - start_time), 3)
+    ### print table
+    print_test_time(encoder_name, time_dict)
+
+
+def print_test_time(encoder_name, time_dict):
+    from prettytable import PrettyTable
+    test_samples = list(time_dict.keys())
+    x = PrettyTable()
+    x.title = "Test time of {}" .format(encoder_name)
+    x.field_names = ["Test sample"] + list(time_dict[test_samples[0]].keys())
+
+    for sp in test_samples:
+        values = list(time_dict[sp].values())
+        tmp = []
+        tmp.append(sp)
+        tmp.extend(values)
+        x.add_rows([
+            tmp
+        ])
+    print(x)
 
 
 if __name__ == "__main__":
@@ -391,22 +426,7 @@ if __name__ == "__main__":
         # # "best_model": ".\\output\\pth\\efficientnet-b4\\0320_133848\\efficientnet-b4_epoch_24.pth",
         # "best_model": ".\\output\\pth\\efficientnet-b4_MANet\\0321_142242\\efficientnet-b4_epoch_30.pth",
         # "best_model": "D:\share\efficientnet-b4_Unet_clip_rotated_epoch_46.pth",
-        
-        # # "encoder_name": "tu-regnety_040",
-        # "encoder_name": "timm-regnety_040",
-        # "best_model": ".\output\pth\\timm-regnety_040_Unet\clip-rotated-32x-customLR1\\0414_112637\\timm-regnety_040_Unet_clip-rotated-32x-customLR1_epoch_51.pth",
-        # # "best_model": ".\\output\pth\\tu-regnety_040_MANet_rotated\\0329_182350\\tu-regnety_040_MANet_rotated_epoch_70.pth",
-        # # "best_model": "D:\share\efficientnet-b4_MANet_epoch_56.pth", 
-        # "best_model": ".\\output\\pth\\tu-regnety_040_MANet\\0321_173313\\tu-regnety_040_MANet_epoch_35.pth",
-        # "best_model": ".\\output\\pth\\tu-regnety_040_MANet\\0323_183024\\tu-regnety_040_MANet_epoch_35.pth",
-        # "encoder_name": "resnext101_32x4d",
-        # "best_model": ".\\output\\pth\\resnext101_32x4d\\0321_092203\\resnext101_32x4d_epoch_30.pth",
-        
-        # "encoder_name": "mobileone_s4",
-        # # "best_model": ".\\output\\pth\\mobileone_s4_Unet\\mobileone_s4_epoch_33.pth",
-        # "best_model": ".\\output\\pth\\mobileone_s4_Unet\\0322_183333\\mobileone_s4_Unet_epoch_30.pth", #50
-        # "best_model": ".\output\pth\mobileone_s4_Unet\clip-rotated-32x-customLR1\\0413_112951\mobileone_s4_Unet_clip-rotated-32x-customLR1_epoch_30.pth",
-        
+         
         "encoder_name": "stdc2",
         # # # # # "best_model": ".\\output\\pth\\stdc2_Unet_clip-rotated\\0331_144655\\stdc2_Unet_clip-rotated_epoch_11.pth",
         # "best_model": "D:\\share\\stdc\\stdc2_Unet_clip-rotated_epoch_50.pth",
@@ -425,8 +445,9 @@ if __name__ == "__main__":
         # "best_model": ".\output\pth\stdc2_Unet\clip-rotated-32x-customLR1\\0427_164303\stdc2_Unet_clip-rotated-32x-customLR1_epoch_57.pth",
         # "best_model": "D:\share\stdc\pth\\16x\stdc2_Unet_clip-rotated-16x-customLR1_epoch_19.pth",
         # "best_model": "D:\share\stdc\ck\stdc2_MANet_clip-rotated-focalloss_epoch_12.pth",
-        "best_model": "D:\share\stdc\pth\stdc2_unet\stdc2_Unet_clip-rotated-32x-customLR1_epoch_18.pth", #zhiqiguan
-
+        # "best_model": "D:\share\stdc\pth\stdc2_unet\stdc2_Unet_clip-rotated-32x-customLR1_epoch_28.pth", #zhiqiguan 18,24,28
+        # "best_model": "D:\share\stdc\pth\stdc2_unet\\bronchial\epoch_0506_172018_30.pth",
+        "best_model": "D:\share\stdc\pth\stdc2_unet\\bronchial\stdc2_Unet_clip-rotated-32x-customLR1_epoch_0504_143917_58.pth",
 
         # "encoder_name": "stdc1",
         # # # "best_model": ".\output\pth\stdc1_Unet_clip-rotated\\0410_150828\stdc1_Unet_clip-rotated_epoch_4.pth",
@@ -460,7 +481,8 @@ if __name__ == "__main__":
         "save_base_path": "D:\project\TrueHealth\git\segmentation_models.pytorch\output\stl",
 
         "output_stride": 32,
-        "stragety": "clip-rotated-32x-customLR-wd1e5", #"clip-rotated-32x-focal", #
+        # "stragety": "clip-rotated-32x-customLR-wd1e5", #"clip-rotated-32x-focal", #
+        "stragety": "clip-rotated-bce-adam-customLR1-32x-wd10-5",
         "sigmoid_threshold": 0.5,
         # "vis_graph": True,
     } 
