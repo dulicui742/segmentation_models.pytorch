@@ -71,7 +71,7 @@ def train(train_dataset, val_dataset, **entrance):
     stragety = entrance["stragety"]
     output_stride = entrance["output_stride"]
     num_classes = len(entrance["classes"])
-    decoder_attention_type = entrance["decoder_atttention_type"]
+    decoder_attention_type = entrance["decoder_attention_type"]
     
     if decoder_name == "Unet" or decoder_name == "AttentionUnet":
         kwargs = {
@@ -328,7 +328,7 @@ def main(entrance):
 
 
 if __name__ == "__main__":
-    if os.environ["USE_JSON"]:
+    if os.environ["USE_JSON_CONFIG_FILE"]:
         opt = cfg2.init_from_env()
         entrance = opt.to_dict()
         entrance["env"] = True

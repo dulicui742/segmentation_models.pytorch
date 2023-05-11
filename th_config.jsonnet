@@ -80,6 +80,7 @@ function(
 
     // downsampling
     output_stride=32,
+    decoder_attention_type=null,
 
     //input channel
     in_channels=1,
@@ -175,6 +176,7 @@ function(
         windowlevel: windowlevel,
         windowwidth: windowwidth,
         output_stride: output_stride,
+        decoder_attention_type: decoder_attention_type,
         stragety: stragety(
                             optimizer_name=optimizer_name, 
                             loss_function=loss_function, 
