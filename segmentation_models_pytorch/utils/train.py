@@ -154,6 +154,14 @@ class TrainEpoch(Epoch):
         loss.backward()
         self.optimizer.step()
 
+    # def batch_update(self, x, y):
+    #     self.optimizer.zero_grad()
+    #     prediction = self.model.forward(x)
+    #     # loss = self.loss(prediction, y)
+    #     loss = self.loss(prediction[:3,:,:], y[:3,:,:]) + 5 * self.loss(prediction[-1,:,:], y[-1,:,:])
+    #     loss.backward()
+    #     self.optimizer.step()
+
         # with torch.cuda.amp.autocast():
         #     loss = self.loss(prediction, y)
         # # Scales the loss, and calls backward() to create scaled gradients

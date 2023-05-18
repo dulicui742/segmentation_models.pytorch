@@ -147,12 +147,13 @@ def test(test_dataset, **entrance):
     classes = entrance["classes"]
     num_classes = len(classes)
     output_stride = entrance["output_stride"]
+    in_channels = entrance["in_channels"]
     model = load_model(
         encoder_name, 
         decoder_name,
         model_path, 
         device, 
-        in_channels=1, 
+        in_channels=in_channels, 
         classes=num_classes, 
         output_stride=output_stride
     )
@@ -186,11 +187,12 @@ def test(test_dataset, **entrance):
         pr_mask = torch.sigmoid(pr_mask)
         pr_mask = (pr_mask.squeeze(0).cpu().numpy().round())
 
-        image = image.squeeze().astype(np.uint8) 
+        # image = image.squeeze().astype(np.uint8)
+        image = image.astype(np.uint8) 
         params = []
         for i in range(len(classes)):
             params.append({
-                "image": image, 
+                "image": image[i,:,:], 
                 "gt_{}" .format(classes[i]): gt_mask[i,:,:], 
                 "pred_{}" .format(classes[i]): pr_mask[i,:,:]})
         visualize(params)
@@ -248,6 +250,7 @@ def generate_stl(**entrance):
         print("dealing with: {}" .format(uid))
         time_dict[uid] = {}
 
+        # import pdb; pdb.set_trace()
         image_path = os.path.join(image_base_path, uid, "dicom")
         dicomreader = vtk.vtkDICOMImageReader()
         dicomreader.SetDirectoryName(image_path)
@@ -447,7 +450,12 @@ if __name__ == "__main__":
         # "best_model": "D:\share\stdc\ck\stdc2_MANet_clip-rotated-focalloss_epoch_12.pth",
         # "best_model": "D:\share\stdc\pth\stdc2_unet\stdc2_Unet_clip-rotated-32x-customLR1_epoch_28.pth", #zhiqiguan 18,24,28
         # "best_model": "D:\share\stdc\pth\stdc2_unet\\bronchial\epoch_0506_172018_30.pth",
-        "best_model": "D:\share\stdc\pth\stdc2_unet\\bronchial\stdc2_Unet_clip-rotated-32x-customLR1_epoch_0504_143917_58.pth",
+        # "best_model": "D:\share\stdc\pth\stdc2_unet\\bronchial\stdc2_Unet_clip-rotated-32x-customLR1_epoch_0504_143917_46.pth",
+        # "best_model": "D:\share\stdc\pth\stdc2_unet\PulmonaryVessels\clip-rotated-bce-adam-customLR1-32x-wd0\\0509_153825\epoch_0509_153825_20",
+        # "best_model": ".\output\stdc2_Unet\clip-rotated-class3-customLR1-32x\pth\\0511_132746\epoch_0511_132746_40",
+        # "best_model": ".\output\stdc2_Unet\clip-rotated-class3-customLR1-32x\pth\\0511_162839\epoch_0511_162839_21",
+        # "best_model": ".\output\stdc2_Unet\clip-rotated-class3-customLR1-32x\pth\\0511_171104\epoch_0511_171104_29",
+        "best_model": "D:\share\stdc\pth\stdc2_unet\\bronchial\clip-rotated-bce-adam-customLR1-32x-wd0\epoch_0510_141835_11", ##zhiqiguan
 
         # "encoder_name": "stdc1",
         # # # "best_model": ".\output\pth\stdc1_Unet_clip-rotated\\0410_150828\stdc1_Unet_clip-rotated_epoch_4.pth",
@@ -472,8 +480,14 @@ if __name__ == "__main__":
         # "windowlevel": 0,
         # "windowwidth": 2000,
 
+        # "windowlevel": -75,
+        # "windowwidth": 800,
+
+        # "windowlevel": [-600, 135, 50, -850],  ## lung, skin, heart, zhiqiguan
+        # "windowwidth": [2000, 385, 500, 310],
+
         "middle_patch_size": 512,
-        "classes": ["zhiqiguan"],# , ["lung", "skin", "heart"], #["lung"], # 
+        "classes": ["zhiqiguan"],# , ["lung", "skin", "heart"], #["lung"], #["lung", "skin", "heart", "zhiqiguan"],#["PulmonaryVessels"], # 
         "in_channels": 1,
         "num_workers": 8,  # 多线程加载所需要的线程数目
         "pin_memory": True,  # 数据从CPU->pin_memory—>GPU加速
@@ -482,9 +496,12 @@ if __name__ == "__main__":
 
         "output_stride": 32,
         # "stragety": "clip-rotated-32x-customLR-wd1e5", #"clip-rotated-32x-focal", #
-        "stragety": "clip-rotated-bce-adam-customLR1-32x-wd10-5",
+        # "stragety": "clip-rotated-bce-adam-customLR1-32x-wd10-5",
+        "stragety": "clip-rotated-bce-adam-customLR1-32x-wd0",
+        # "stragety": "clip-rotated-class3",
         "sigmoid_threshold": 0.5,
         # "vis_graph": True,
+        "is_multilabels": False
     } 
 
     test_dataset = smp.datasets.SegDataset1(
@@ -497,7 +514,8 @@ if __name__ == "__main__":
         windowwidth=entrance["windowwidth"],
         transform=None,
         # transform=transform,
-        status=False
+        status=False,
+        is_multilabels=entrance["is_multilabels"],
     )
     # test(test_dataset, **entrance)
     generate_stl(**entrance)

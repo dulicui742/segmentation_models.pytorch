@@ -146,6 +146,7 @@ class SegDataset1(Dataset):
         image_folder_name="dicom",
         mask_folder_name="mask",
         status=True, # True for training, False for test
+        is_multilabels=False,
     ):
         ## TO DO: 完成数据列表的统计，transform
         ## input：list_txt, 
@@ -164,12 +165,13 @@ class SegDataset1(Dataset):
         self.windowlevel = windowlevel
         self.windowwidth = windowwidth
 
-        self.min_bound = windowlevel - windowwidth // 2  
-        self.max_bound = windowlevel + windowwidth // 2
+        # self.min_bound = windowlevel - windowwidth // 2  
+        # self.max_bound = windowlevel + windowwidth // 2
 
         self.uids = os.listdir(base_path)
         self.image_labels = []
         self.status = status
+        self.is_multilabels = is_multilabels
 
         for uid in self.uids:
             self.image_path = os.path.join(base_path, uid, image_folder_name)
@@ -198,18 +200,63 @@ class SegDataset1(Dataset):
         )
         image = sitk.ReadImage(img_path)
         image = sitk.GetArrayFromImage(image)
-        ## method1
-        # image = ((image - self.windowlevel) / self.windowwidth + 0.5) * 255.0
 
-        # ## method2
-        image = ((image - self.windowlevel) / self.windowwidth + 0.5)
-        image = np.clip(image, 0, 1) * 255.0
+        if self.is_multilabels:
 
-        # ## method3
-        # image = (image - self.min_bound) / (self.max_bound - self.min_bound)
-        # image = np.clip(image, 0, 1)
+            # def custom_normalize(data, mean, var):
+            #     channels, _, _ = data.shape
+            #     for i in range(channels):
+            #         # print(data.shape, i, channels)
+            #         data[i, :, :] = (data[i, :, :] - mean[i] + 0.5 * var[i]) / var[i]
+            #         data[i, :, :] = np.clip(data[i, :, :], 0, 1) * 255
+            #     return data
 
-        image = image.reshape((self.height, self.width, self.channels))
+            # def data_copy(data, numbers):
+            #     # print(data.shape, "============")
+            #     assert len(data.shape) != 2, "Error: data shape! Check again..."
+            #     tmp = np.zeros((numbers, self.height, self.width, ))
+            #     for i in range(numbers):
+            #         tmp[i,:,:] = data[0]
+            #     return tmp
+
+
+            def custom_normalize(data, mean, var):
+                _, _, channels = data.shape
+                for i in range(channels):
+                    # print(data.shape, i, channels)
+                    data[:, :, i] = (data[:, :, i] - mean[i] + 0.5 * var[i]) / var[i]
+                    data[:, :, i] = np.clip(data[:, :, i], 0, 1) * 255
+                return data
+
+            def data_copy(data, numbers):
+                # print(data.shape, "============")
+                assert len(data.shape) != 2, "Error: data shape! Check again..."
+                tmp = np.zeros((self.height, self.width, numbers))
+                for i in range(numbers):
+                    tmp[:,:,i] = data[0]
+                return tmp
+            
+            # print(len(self.windowlevel), len(self.windowwidth), self.num_classes, '=======')
+            assert len(self.windowlevel) == self.num_classes, "Error: wl! Check again..."
+            assert len(self.windowlevel) == len(self.windowwidth), "Error: ww!"
+            image = data_copy(image, self.num_classes)
+            image = custom_normalize(image, self.windowlevel, self.windowwidth)
+            # image = image.reshape((self.height, self.width, self.num_classes))
+            # print("image shape: ", image.shape, "=======")
+            
+        else:
+            ## method1
+            # image = ((image - self.windowlevel) / self.windowwidth + 0.5) * 255.0
+
+            # ## method2
+            image = ((image - self.windowlevel) / self.windowwidth + 0.5)
+            image = np.clip(image, 0, 1) * 255.0
+
+            # ## method3
+            # image = (image - self.min_bound) / (self.max_bound - self.min_bound)
+            # image = np.clip(image, 0, 1)
+
+            image = image.reshape((self.height, self.width, self.channels))
 
         ## deal with label
         mask = np.zeros((self.height, self.width, self.num_classes), dtype=float)

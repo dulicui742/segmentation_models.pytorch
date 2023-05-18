@@ -72,6 +72,7 @@ def train(train_dataset, val_dataset, **entrance):
     output_stride = entrance["output_stride"]
     num_classes = len(entrance["classes"])
     decoder_attention_type = entrance["decoder_attention_type"]
+    in_channels = entrance["in_channels"]
     
     if decoder_name == "Unet" or decoder_name == "AttentionUnet":
         kwargs = {
@@ -85,7 +86,7 @@ def train(train_dataset, val_dataset, **entrance):
         arch=decoder_name,
         encoder_name=encoder_name,
         encoder_weights=None,
-        in_channels=1,
+        in_channels=in_channels,
         classes=num_classes,
         **kwargs,
     )
@@ -313,6 +314,7 @@ def main(entrance):
         transform=None,
         # transform=transform,
         # status=False,
+        is_multilabels=True
     )
     val_dataset = SegDataset1(
         base_path=entrance["valid_base_path"],
@@ -322,18 +324,22 @@ def main(entrance):
         windowlevel=entrance["windowlevel"],
         windowwidth=entrance["windowwidth"],
         transform=None,
-        # transform=transform
+        # transform=transform,
+        is_multilabels=True
     )
     train(train_dataset, val_dataset, **entrance)
 
 
 if __name__ == "__main__":
-    if os.environ["USE_JSON_CONFIG_FILE"]:
-        opt = cfg2.init_from_env()
-        entrance = opt.to_dict()
-        entrance["env"] = True
-    else:
-        entrance = cfg1
-        entrance["env"] = False
+    # if os.environ["USE_JSON_CONFIG_FILE"]:
+    #     opt = cfg2.init_from_env()
+    #     entrance = opt.to_dict()
+    #     entrance["env"] = True
+    # else:
+    #     entrance = cfg1
+    #     entrance["env"] = False
+
+    entrance = cfg1
+    entrance["env"] = False
     main(entrance)
     print("end")

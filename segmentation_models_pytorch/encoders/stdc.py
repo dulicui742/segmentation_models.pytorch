@@ -43,6 +43,9 @@ class SDTCEncoder(STDCNet1446, EncoderMixin):
         self._out_channels = out_channels
         self.features = self.re_make_layers(self._in_channels, base, layers, block_num, block)
 
+        self.x2 = nn.Sequential(self.features[:1])
+        self.x4 = nn.Sequential(self.features[1:2])
+
         if model_name == "stdc1": ## default: stdc2
             self.x8 = nn.Sequential(self.features[2:4])
             self.x16 = nn.Sequential(self.features[4:6])
@@ -78,7 +81,6 @@ class SDTCEncoder(STDCNet1446, EncoderMixin):
         """Apply forward pass."""
         stages = self.get_stages()
         features = []
-
         for i in range(self._depth + 1):
             x = stages[i](x)
             features.append(x)
