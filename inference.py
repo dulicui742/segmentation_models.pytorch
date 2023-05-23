@@ -39,6 +39,7 @@ from segmentation_models_pytorch.utils.losses import(
 from segmentation_models_pytorch.utils.metrics import(
     IoU, Fscore, Precision, Recall, Accuracy
 )
+from affine_matrix import get_affine_matrix
 
 
 # helper function for data visualization
@@ -239,11 +240,11 @@ def generate_stl(**entrance):
             continue
         
         # if uid in ["PA1", "PA13", "PA11", "PA12", "PA10", "PA2"]:
-        if uid in ["PA2"]:
-            print("skip: ", uid)
-            continue
+        # if uid in ["PA2"]:
+        #     print("skip: ", uid)
+        #     continue
 
-        # if uid not in ["PA7", "PA8"]:
+        # if uid not in ["35", "37", "43", "81", "82", "83", "84", "85", "86", "87", "88", "89", "52", "53", "62"]: # 
         #     continue
 
         print("\n------------------------------")
@@ -341,6 +342,27 @@ def generate_stl(**entrance):
         contour.Update()
         output = contour.GetOutput()
 
+        matrix = get_affine_matrix(image_path)
+        print("-------------\n", matrix)
+
+        def Array2vtkTransform(arr):
+            T = vtk.vtkTransform()
+            matrix = vtk.vtkMatrix4x4()
+            for i in range(0, 4):
+                for j in range(0, 4):
+                    matrix.SetElement(i, j, arr[i, j])
+            T.SetMatrix(matrix)
+            return T
+
+        # transform = vtk.vtkTransform()
+        # transform.SetMatrix(matrix)
+        transform = Array2vtkTransform(matrix)
+        transformPolyDataFilter = vtk.vtkTransformPolyDataFilter()
+        transformPolyDataFilter.SetInputData(output)
+        transformPolyDataFilter.SetTransform(transform)
+        transformPolyDataFilter.Update()
+        output = transformPolyDataFilter.GetOutput()
+
         mapper = vtk.vtkPolyDataMapper()
         mapper.SetInputData(output)
         mapper.ScalarVisibilityOff()
@@ -354,14 +376,13 @@ def generate_stl(**entrance):
         label_name = labels[0]
         uid = image_path.split("\\")[-2]
         epoch = int(best_model_path.split("_")[-1].split(".")[0])
-        # stl_save_base_path = os.path.join(entrance["save_base_path"], label_name)
         stl_save_base_path = os.path.join(
             entrance["save_base_path"],  
             label_name,
             "{}_{}" .format(encoder_name, decoder_name),
             stragety,
             timestamp,
-            "epoch{}_sigmoid{}" .format(epoch, str(sigmoid_threshold)),
+            "epoch{}_wl{}_ww{}_sigmoid{}" .format(epoch, windowlevel, windowwidth, str(sigmoid_threshold)),
         )
         if not os.path.exists(stl_save_base_path):
             os.makedirs(stl_save_base_path)
@@ -439,6 +460,7 @@ if __name__ == "__main__":
         # # "best_model": "D:\share\stdc\stdc2_Unet_clip-rotated_8x_epoch_10.pth",
         # "best_model": "D:\share\stdc\pth\stdc2_Unet_clip-rotated-8x-OneCycleLR_epoch_5.pth",
         # "best_model": "D:\share\stdc\pth\stdc2_Unet_clip-rotated-16x-customLR1_epoch_44.pth",
+        "best_model": ".\output\pth\stdc2_Unet\clip-rotated-16x-customLR1\\0418_093532\stdc2_Unet_clip-rotated-16x-customLR1_epoch_28.pth",
         # "best_model": "D:\share\stdc\pth\stdc2_MANet_noclip-rotated_epoch_22.pth",
         # "best_model": ".\output\pth\stdc2_Unet\clip-rotated-32x-customLR1\\0423_110239\stdc2_Unet_clip-rotated-32x-customLR1_epoch_56.pth",
         # "best_model": "D:\share\stdc\pth\stdc2_MANet_clip-rotated_epoch_21.pth",
@@ -455,21 +477,14 @@ if __name__ == "__main__":
         # "best_model": ".\output\stdc2_Unet\clip-rotated-class3-customLR1-32x\pth\\0511_132746\epoch_0511_132746_40",
         # "best_model": ".\output\stdc2_Unet\clip-rotated-class3-customLR1-32x\pth\\0511_162839\epoch_0511_162839_21",
         # "best_model": ".\output\stdc2_Unet\clip-rotated-class3-customLR1-32x\pth\\0511_171104\epoch_0511_171104_29",
-        "best_model": "D:\share\stdc\pth\stdc2_unet\\bronchial\clip-rotated-bce-adam-customLR1-32x-wd0\epoch_0510_141835_11", ##zhiqiguan
-
-        # "encoder_name": "stdc1",
-        # # # "best_model": ".\output\pth\stdc1_Unet_clip-rotated\\0410_150828\stdc1_Unet_clip-rotated_epoch_4.pth",
-        # # "best_model": ".\output\pth\stdc1_Unet_clip-rotated\\0412_132929\stdc1_Unet_clip-rotated_epoch_59.pth",
-        # # # "best_model": ".\output\pth\stdc1_Unet_clip-rotated\\0412_112630\stdc1_Unet_clip-rotated_epoch_59.pth",
-        # "best_model": "D:\share\stdc\pth\stdc1_Unet_clip-rotated-8x-OneCycleLR_epoch_8.pth",
+        # "best_model": "D:\share\stdc\pth\stdc2_unet\\bronchial\clip-rotated-bce-adam-customLR1-32x-wd0\epoch_0510_141835_11", ##zhiqiguan
 
         "decoder_name": "Unet", #"AttentionUnet", #"MANet", #
         "device": "cuda:0",
         "test_base_path": "D:\\project\\TrueHealth\\20230217_Alg1\\data\\examples\\src_seg\\val",
-        # "image_path": "D:\\project\\TrueHealth\\20230217_Alg1\\data\\examples\\src_seg\\val\\20170831-000005\\dicom",
         "image_path": "D:\project\TrueHealth\\20230217_Alg1\data\examples\src_seg\zhiqiguan_test\PA1\dicom",
-
         "image_base_path": "D:\project\TrueHealth\\20230217_Alg1\data\examples\src_seg\zhiqiguan_test",
+        # "image_base_path": "\\192.168.1.99\Data\data_sphere_test",
         
         # "windowlevel": -600,
         # "windowwidth": 2000,
@@ -494,10 +509,11 @@ if __name__ == "__main__":
         "batch_size": 4,
         "save_base_path": "D:\project\TrueHealth\git\segmentation_models.pytorch\output\stl",
 
-        "output_stride": 32,
+        "output_stride": 16,
         # "stragety": "clip-rotated-32x-customLR-wd1e5", #"clip-rotated-32x-focal", #
         # "stragety": "clip-rotated-bce-adam-customLR1-32x-wd10-5",
-        "stragety": "clip-rotated-bce-adam-customLR1-32x-wd0",
+        # "stragety": "clip-rotated-bce-adam-customLR1-32x-wd0",
+        "stragety": "clip-rotated-16x-customLR1",
         # "stragety": "clip-rotated-class3",
         "sigmoid_threshold": 0.5,
         # "vis_graph": True,

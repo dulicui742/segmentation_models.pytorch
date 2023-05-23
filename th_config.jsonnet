@@ -127,6 +127,7 @@ function(
 
     loss_function="focal",  // 损失函数,对应于models.loss.py中的函数名
     pretrained_model=null,
+    mode="binary",
 
     // new configs
     is_training=null,  // 影响input_config2.Config的逻辑
@@ -168,6 +169,7 @@ function(
         loss_function: loss_function,
         pretrained_model: pretrained_model,
         device: device,
+        mode:mode,
 
         // 对于optimizer的选择
         optimizer_name: optimizer_name,
@@ -187,12 +189,14 @@ function(
         pth_save_base_path: save_path(
                             stragety=self.stragety, 
                             name="pth",
+                            classname=classname,
                             encoder_name=self.encoder_name, 
                             decoder_name=self.decoder_name,
                         ),
         log_save_base_path: save_path(
                             stragety=self.stragety, 
-                            name="logs", 
+                            name="logs",
+                            classname=classname,
                             encoder_name=self.encoder_name, 
                             decoder_name=self.decoder_name,
                         ),
