@@ -155,6 +155,6 @@ class UnetDecoder(nn.Module):
         for i, decoder_block in enumerate(self.blocks):
             skip = skips[i] if i < len(skips) else None
             x = decoder_block(x, skip, self.scale_factor[i])
-            # print("decoder: ", i, x.shape)
+            # print("decoder: ", i, x.shape, self.scale_factor[i])
 
         return x

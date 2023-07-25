@@ -83,6 +83,7 @@ class SDTCEncoder(STDCNet1446, EncoderMixin):
         features = []
         for i in range(self._depth + 1):
             x = stages[i](x)
+            # print(f"stage: {i}, shape: {x.shape}")
             features.append(x)
         return features
 
@@ -110,6 +111,8 @@ stdc_encoders = {
             "base": 64,
             "layers": [4, 5, 3],
             "out_channels": (3, 32, 64, 256, 512, 1024),
+            # "out_channels": (3, 32, 64, 128, 256, 512),
+            # "out_channels": (3, 32, 64, 256, 256, 512),
             "model_name": "stdc2",
         }
     }

@@ -35,6 +35,14 @@ from segmentation_models_pytorch.utils.losses import(
     BCELoss,
     BCEWithLogitsLoss,
     FocalLoss,
+    SymmetricUnifiedFocalLoss,
+    AsymmetricUnifiedFocalLoss,
+    SymmetricFocalLoss,
+    AsymmetricFocalLoss,
+    SymmetricFocalTverskyLoss,
+    AsymmetricFocalTverskyLoss,
+    TverskyLoss,
+    TverskyLossFocal,
 )
 from segmentation_models_pytorch.utils.metrics import(
     IoU, Fscore, Precision, Recall, Accuracy
@@ -70,9 +78,12 @@ def train(train_dataset, val_dataset, **entrance):
     decoder_name = entrance["decoder_name"]
     stragety = entrance["stragety"]
     output_stride = entrance["output_stride"]
-    num_classes = len(entrance["classes"])
+    classes = entrance["classes"]
+    num_classes = len(classes)
     decoder_attention_type = entrance["decoder_attention_type"]
     in_channels = entrance["in_channels"]
+    decoder_channels = entrance["decoder_channels"]
+    encoder_depth = entrance["encoder_depth"]
     
     if decoder_name == "Unet" or decoder_name == "AttentionUnet":
         kwargs = {
@@ -87,10 +98,13 @@ def train(train_dataset, val_dataset, **entrance):
         encoder_name=encoder_name,
         encoder_weights=None,
         in_channels=in_channels,
+        encoder_depth=encoder_depth,
+        decoder_channels=decoder_channels,
         classes=num_classes,
         **kwargs,
     )
 
+    # import pdb; pdb.set_trace()
     ## ===============load pretrained model===============
     print("load model...!")
     pretrain_model_path = entrance["pretrained_model"]
@@ -131,6 +145,7 @@ def train(train_dataset, val_dataset, **entrance):
     scheduler_name = entrance["scheduler_name"]
     mode = entrance["mode"]
     optimizer_name = entrance["optimizer_name"]
+    loss_function = entrance["loss_function"]
 
     optimizers = {
         "sgd": get_sgd_optimizer(
@@ -180,18 +195,26 @@ def train(train_dataset, val_dataset, **entrance):
         "focal": FocalLoss(mode=mode, alpha=0.25,),
         "wbce": BCEWithLogitsLoss(pos_weight=torch.tensor([10])),
         "dice-bce": SumOfLosses(DiceLoss1(mode=mode,), BCEWithLogitsLoss()),
-        "dice-focal": SumOfLosses(DiceLoss1(mode=mode,), FocalLoss(mode=mode, alpha=0.25,))
+        "dice-focal": SumOfLosses(DiceLoss1(mode=mode,), FocalLoss(mode=mode, alpha=0.25,)),
+        "sufl": SymmetricUnifiedFocalLoss(gamma=0.8),
+        "aufl": AsymmetricUnifiedFocalLoss(gamma=0.3),
     }
+    if "tversky" in loss_function:
+        t_alpha = entrance["tversky_alpha"]
+        t_beta = entrance["tversky_beta"]
+        t_gamma = entrance["tversky_gamma"]
+        criterions.update({"tversky": TverskyLoss(mode=mode, alpha=t_alpha, beta=t_beta, gamma=t_gamma)})
+        criterions.update({"tverskyfocal": TverskyLossFocal(mode=mode, alpha=t_alpha, beta=t_beta, gamma=t_gamma)})
 
     ## ==================start to train===================
     print("----------start to train------------")
-    loss_function = entrance["loss_function"]
     criterion = criterions[loss_function]
     metrics = [IoU(), Fscore(), Precision(), Recall(), Accuracy()]
     device = torch.device(entrance["device"] if torch.cuda.is_available() else "cpu")
 
-    print(f"lr: {lr}, lr_decay: {lr_decay}, momentum: {momentum}, weight_decay: {weight_decay},\
-        loss: {criterion}, optimizer: {optimizer}, scheduler: {scheduler}"
+    print(f"lr: {lr}, lr_decay: {lr_decay}, momentum: {momentum}, weight_decay: {weight_decay},\n\
+        loss: {criterion}, optimizer: {optimizer}, \nscheduler: {scheduler} \
+        class: {classes}, en_depth: {encoder_depth}, de_ch: {decoder_channels}"
     ) 
 
     train_epoch = TrainEpoch(
@@ -248,6 +271,7 @@ def train(train_dataset, val_dataset, **entrance):
         print("current lr: {}". format(scheduler.get_lr()))
 
         # logs = train_epoch.run(dataloader)
+        train_dataset.random_sampler()
         train_logs = train_epoch.custom_run(dataloader, epoch, log_filename)
 
         ## to save model
@@ -314,7 +338,7 @@ def main(entrance):
         transform=None,
         # transform=transform,
         # status=False,
-        is_multilabels=True
+        is_multilabels=entrance["is_multilabels"]
     )
     val_dataset = SegDataset1(
         base_path=entrance["valid_base_path"],
@@ -325,7 +349,7 @@ def main(entrance):
         windowwidth=entrance["windowwidth"],
         transform=None,
         # transform=transform,
-        is_multilabels=True
+        is_multilabels=entrance["is_multilabels"]
     )
     train(train_dataset, val_dataset, **entrance)
 

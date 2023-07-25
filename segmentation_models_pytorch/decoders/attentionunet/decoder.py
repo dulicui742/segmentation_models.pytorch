@@ -33,11 +33,14 @@ class Attention_gata(nn.Module):
         self.relu = nn.ReLU(inplace=True)
  
     def forward(self, g, x):
+        # import pdb; pdb.set_trace()
+        # print("------x: ", g.shape, x.shape)
         g1 = self.W_g(g)
         x1 = self.W_x(x)
         psi = self.relu(g1 + x1)
         psi = self.psi(psi)
- 
+
+        # print("g1: ", g1.shape, "x1:", x1.shape, "x:", x.shape)
         return x * psi
 
 
@@ -51,7 +54,11 @@ class DecoderBlock(nn.Module):
         attention_type=None,
     ):
         super().__init__()
-        self.attention_gate = Attention_gata(F_g=skip_channels, F_l=in_channels, F_int=out_channels)
+        # self.attention_gate = Attention_gata(F_g=skip_channels, F_l=in_channels, F_int=out_channels)
+        if skip_channels == 0:
+            self.attention_gate = None
+        else:
+            self.attention_gate = Attention_gata(F_g=in_channels, F_l=skip_channels, F_int=out_channels)
         self.conv1 = md.Conv2dReLU(
             in_channels + skip_channels,
             out_channels,
@@ -75,10 +82,15 @@ class DecoderBlock(nn.Module):
             # print("concat in:", x.shape, skip.shape)
             if skip_attention:
                 ## -----attention gate  Attention Unet ------
-                x = self.attention_gate(skip, x)
+                # import pdb; pdb.set_trace()
+                # print("before atten:", "x:", x.shape, "skip:",skip.shape)
+                # x = self.attention_gate(skip, x)
+                skip = self.attention_gate(x, skip)
+                # print("after atten: new_skip: ", skip.shape)
                 ## -----attention gate  Attention Unet ------
 
-            x = torch.cat([x, skip], dim=1)
+            # x = torch.cat([x, skip], dim=1)
+            x = torch.cat([skip, x], dim=1)
             # print("concat out", x.shape)
             x = self.attention1(x)
         x = self.conv1(x)
@@ -137,6 +149,8 @@ class UnetDecoder(nn.Module):
         in_channels = [head_channels] + list(decoder_channels[:-1])
         skip_channels = list(encoder_channels[1:]) + [0]
         out_channels = decoder_channels
+        # print("~"*30)
+        # print(in_channels, skip_channels, out_channels)
 
         if center:
             self.center = CenterBlock(head_channels, head_channels, use_batchnorm=use_batchnorm)
@@ -155,11 +169,13 @@ class UnetDecoder(nn.Module):
         print("------skip attention: ", self.skip_attention, "-------")
 
     def forward(self, *features):
+        # import pdb; pdb.set_trace()
         features = features[1:]  # remove first skip with same spatial resolution (input)
         features = features[::-1]  # reverse channels to start from head of encoder
 
         head = features[0]
         skips = features[1:]
+        # print("=====================skip num:", len(skips))
         # head.shape: torch.Size([1, 448, 64, 64])
         # [ skips.shape
         # torch.Size([1, 160, 64, 64]), 

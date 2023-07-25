@@ -12,14 +12,19 @@ entrance = {
     # "windowlevel": -600,
     # "windowwidth": 2000,
 
-    # "windowlevel": -850,
-    # "windowwidth": 310,
+    "windowlevel": -850,
+    "windowwidth": 310,
 
     # "windowlevel": 0,
     # "windowwidth": 2000,
 
-    "windowlevel": [-600, 135, 50, -850],  ## lung, skin, heart
-    "windowwidth": [2000, 385, 500, 310],
+    # "windowlevel": [-600, 135, 50, -850],  ## lung, skin, heart
+    # "windowwidth": [2000, 385, 500, 310],
+
+    "is_multilabels": False,
+    "in_channels": 1,  ## CT  slice
+    "decoder_channels": [256, 128, 64, 32, 16], ##[[512, 128, 64, 32, 16]]
+    "encoder_depth": 5,
 
     "train_base_path": "D:\\project\\TrueHealth\\20230217_Alg1\\data\\examples\\src_seg\\train",
     "valid_base_path": "D:\\project\\TrueHealth\\20230217_Alg1\\data\\examples\\src_seg\\val",
@@ -31,7 +36,7 @@ entrance = {
     # "encoder_name": "tu-regnety_040", #regnety_040
     # "encoder_name": "timm-regnety_040", #regnety_040
     "encoder_name": "stdc2", ## stdc2
-    "decoder_name": "Unet", #"MANet", #
+    "decoder_name": "AttentionUnet", #"MANet", #
     "decoder_attention_type": None,
     "stragety": "clip-rotated-class3", #"normal-rotated", #
     "pretrained_model": None,
@@ -47,15 +52,15 @@ entrance = {
     "pin_memory": True,  # 数据从CPU->pin_memory—>GPU加速
 
     # model config
-    "classes": ["lung", "skin", "heart", "zhiqiguan"],  #["zhiqiguan"], #  ["lung"], #
-    "output_stride": 32,
-    "in_channels": 4,  ## CT  slice 
+    "classes": ["zhiqiguan"], #  ["lung"],#["bg", "lung"], #["lung", "skin", "heart", "zhiqiguan"],  #
+    "output_stride": 16,
+    # "in_channels": 4,  ## CT  slice 
     "batch_size": 4, #16 (for stdc) 4 (for efficientnet)
     "middle_patch_size": 512,
     "patch_size": 299,
     "plot_every": 50,
 
-    "loss_function": "bce", ## focal, dice, bce
+    "loss_function": "bce", ## focal, dice, bce, aufl, sufl,tversky
     "mode": "binary", ## "multiclass", "multilabel"
     
     "optimizer_name": "adam", #"adamw",#"adam""sgd", #
@@ -86,5 +91,10 @@ entrance = {
     # # log_name
     # "log_name": "log.txt"
 
-    "device": "cuda:0"
+    "device": "cuda:0",
+
+
+    "tversky_alpha": 0.3,
+    "tversky_beta": 0.7,
+    "tversky_gamma": 1.0,
 }

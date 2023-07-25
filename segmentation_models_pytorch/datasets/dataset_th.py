@@ -28,6 +28,8 @@ class SegDataset(Dataset):
         image_folder_name="dicom",
         mask_folder_name="mask",
         status=True, # True for training, False for test
+        aug_name="clip-rotated",
+        data_ratio=1,
     ):
         ## TO DO: 完成数据列表的统计，transform
         ## input：list_txt, 
@@ -46,6 +48,8 @@ class SegDataset(Dataset):
         self.windowlevel = windowlevel
         self.windowwidth = windowwidth
         self.status=status
+        self.aug_name = aug_name
+        self.data_ratio = data_ratio
 
         uids = []
         with open(uid_file) as f:
@@ -56,11 +60,16 @@ class SegDataset(Dataset):
         for uid in uids:
             for filename in os.listdir(os.path.join(image_base_path, uid)):
                 self.image_labels.append(os.path.join(uid, filename))
-        # self.image_labels = self.image_labels[:50] ##debug
+        # self.image_labels = self.image_labels[:200] ##debug
+        self.image_nums = len(self.image_labels)
+
+        # import pdb; pdb.set_trace()
+        self.random_sampler()
         print("uids:", len(uids), "image_label:", len(self.image_labels))
 
     def __len__(self):
-        return len(self.image_labels)
+        # self._image_labels = random.sample(self.image_labels, self.image_nums//self.data_ratio)
+        return len(self._image_labels)
 
     def __getitem__(self, idx):
         ## deal with image
@@ -73,9 +82,13 @@ class SegDataset(Dataset):
         image = sitk.GetArrayFromImage(image)
         # image = ((image - self.windowlevel) / self.windowwidth + 0.5) * 255.0
 
-        # ## clip to (0, 1)
-        image = (image - self.windowlevel) / self.windowwidth + 0.5
-        image = np.clip(image, 0, 1) * 255
+        if self.aug_name == "clip-rotated":
+            ## clip to (0, 1)
+            # print("hhh")
+            image = (image - self.windowlevel) / self.windowwidth + 0.5
+            image = np.clip(image, 0, 1) * 255
+        else:
+            image = ((image - self.windowlevel) / self.windowwidth + 0.5) * 255.0
         image = image.reshape((self.height, self.width, self.channels))
 
         ## deal with label
@@ -128,6 +141,8 @@ class SegDataset(Dataset):
         mask = mask.copy()
         return image, mask
 
+    def random_sampler(self):
+        self._image_labels = random.sample(self.image_labels, self.image_nums//self.data_ratio)
 
 class SegDataset1(Dataset):
     def __init__(
@@ -147,6 +162,7 @@ class SegDataset1(Dataset):
         mask_folder_name="mask",
         status=True, # True for training, False for test
         is_multilabels=False,
+        ratio=1,
     ):
         ## TO DO: 完成数据列表的统计，transform
         ## input：list_txt, 
@@ -186,17 +202,21 @@ class SegDataset1(Dataset):
                 maskn  ## 只保存maskname
                 ]) 
         # self.image_labels = self.image_labels[:50]  ###debug
+        self.image_nums = len(self.image_labels)
         print("uids:", len(self.uids), "image_label:", len(self.image_labels))
+
+        self.ratio = ratio
+        self.random_sampler()
 
 
     def __len__(self):
-        return len(self.image_labels)
+        return len(self._image_labels)
 
     def __getitem__(self, idx):
         ## deal with image
         img_path = os.path.join(
             self.base_path,
-            self.image_labels[idx][0]
+            self._image_labels[idx][0]
         )
         image = sitk.ReadImage(img_path)
         image = sitk.GetArrayFromImage(image)
@@ -261,18 +281,22 @@ class SegDataset1(Dataset):
         ## deal with label
         mask = np.zeros((self.height, self.width, self.num_classes), dtype=float)
         for index, stl_name in enumerate(self.stl_names):
+            if stl_name == "bg":
+                continue
             cur_uid = img_path.split('\\')[-3]
             label_path = os.path.join(
                 self.base_path, 
                 cur_uid,
                 self.mask_folder_name, 
                 stl_name, 
-                self.image_labels[idx][1]
+                self._image_labels[idx][1]
             )
             tmp = sitk.ReadImage(label_path)
             tmp = sitk.GetArrayFromImage(tmp)
             tmp = tmp.reshape((self.height, self.width))
             mask[:, :, index] = tmp 
+
+        # print(self._image_labels[idx][1], end="/")
 
         if self.status:
             ### Operate rotated Imust be applied to the HWC image, not the CHW image.
@@ -307,3 +331,8 @@ class SegDataset1(Dataset):
         # image = image.copy()
         # mask = mask.copy()
         return image, mask
+    
+    def random_sampler(self):
+        self._image_labels = random.sample(self.image_labels, self.image_nums//self.ratio)
+        self._image_labels.sort()
+        print("image_label:", len(self._image_labels), len(self.image_labels))

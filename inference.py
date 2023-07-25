@@ -79,6 +79,8 @@ def load_model(
     model_path, 
     device, 
     in_channels=1, 
+    encoder_depth=5,
+    decoder_channels=[256, 128, 64, 32, 16],
     classes=1, 
     output_stride=32,
     decoder_attention_type=None,
@@ -97,6 +99,8 @@ def load_model(
         encoder_name=encoder_name,
         encoder_weights=None,
         in_channels=in_channels,
+        encoder_depth=encoder_depth,
+        decoder_channels=decoder_channels,
         classes=classes,
         **kwargs,
     ).to(device)
@@ -149,12 +153,17 @@ def test(test_dataset, **entrance):
     num_classes = len(classes)
     output_stride = entrance["output_stride"]
     in_channels = entrance["in_channels"]
+    decoder_channels = entrance["decoder_channels"]
+    encoder_depth = entrance["encoder_depth"]
+
     model = load_model(
         encoder_name, 
         decoder_name,
         model_path, 
         device, 
         in_channels=in_channels, 
+        encoder_depth=encoder_depth,
+        decoder_channels=decoder_channels,
         classes=num_classes, 
         output_stride=output_stride
     )
@@ -217,6 +226,9 @@ def generate_stl(**entrance):
     output_stride = entrance["output_stride"]
     stragety = entrance["stragety"]
     sigmoid_threshold = entrance["sigmoid_threshold"]
+    decoder_channels = entrance["decoder_channels"]
+    encoder_depth = entrance["encoder_depth"]
+
     timestamp = "_".join(best_model_path.split("\\")[-1].split("_")[-3:-1])
     print("ts:", timestamp)
 
@@ -227,6 +239,8 @@ def generate_stl(**entrance):
         best_model_path, 
         device, 
         in_channels=1, 
+        encoder_depth=encoder_depth,
+        decoder_channels=decoder_channels,
         classes=num_classes, 
         output_stride=output_stride
     )
@@ -267,11 +281,15 @@ def generate_stl(**entrance):
         for i in range(dimensions[2]):
             img = dicomArray[i, ::-1, :] 
             # ## method1
-            # img = ((img - windowlevel) / windowwidth + 0.5) * 255.0
-
-            # ## method2 
-            img = (img - windowlevel) / windowwidth + 0.5
-            img = np.clip(img, 0, 1) * 255
+            if entrance["aug_name"] == "noclip-rotated":
+                img = ((img - windowlevel) / windowwidth + 0.5) * 255
+            elif entrance["aug_name"] == "clip-rotated":
+                ## for test
+                img = ((img - windowlevel) / windowwidth + 0.5) 
+                img = np.clip(img, 0, 1) * 255
+            else:
+                print("Error!!!")
+                break
 
             # cv2.imshow("img", img/255)
             # params = {"image": img}
@@ -460,7 +478,7 @@ if __name__ == "__main__":
         # # "best_model": "D:\share\stdc\stdc2_Unet_clip-rotated_8x_epoch_10.pth",
         # "best_model": "D:\share\stdc\pth\stdc2_Unet_clip-rotated-8x-OneCycleLR_epoch_5.pth",
         # "best_model": "D:\share\stdc\pth\stdc2_Unet_clip-rotated-16x-customLR1_epoch_44.pth",
-        "best_model": ".\output\pth\stdc2_Unet\clip-rotated-16x-customLR1\\0418_093532\stdc2_Unet_clip-rotated-16x-customLR1_epoch_28.pth",
+        # "best_model": ".\output\pth\stdc2_Unet\clip-rotated-16x-customLR1\\0418_093532\stdc2_Unet_clip-rotated-16x-customLR1_epoch_28.pth",
         # "best_model": "D:\share\stdc\pth\stdc2_MANet_noclip-rotated_epoch_22.pth",
         # "best_model": ".\output\pth\stdc2_Unet\clip-rotated-32x-customLR1\\0423_110239\stdc2_Unet_clip-rotated-32x-customLR1_epoch_56.pth",
         # "best_model": "D:\share\stdc\pth\stdc2_MANet_clip-rotated_epoch_21.pth",
@@ -478,6 +496,8 @@ if __name__ == "__main__":
         # "best_model": ".\output\stdc2_Unet\clip-rotated-class3-customLR1-32x\pth\\0511_162839\epoch_0511_162839_21",
         # "best_model": ".\output\stdc2_Unet\clip-rotated-class3-customLR1-32x\pth\\0511_171104\epoch_0511_171104_29",
         # "best_model": "D:\share\stdc\pth\stdc2_unet\\bronchial\clip-rotated-bce-adam-customLR1-32x-wd0\epoch_0510_141835_11", ##zhiqiguan
+        # "best_model": ".\output\stdc2_Unet\clip-rotated-class3-customLR1-32x\pth\\0523_174438\epoch_0523_174438_45",
+        "best_model": ".\output\stdc2_Unet\clip-rotated-class3-customLR1-32x\pth\\0525_170441\epoch_0525_170441_23",
 
         "decoder_name": "Unet", #"AttentionUnet", #"MANet", #
         "device": "cuda:0",
@@ -509,15 +529,21 @@ if __name__ == "__main__":
         "batch_size": 4,
         "save_base_path": "D:\project\TrueHealth\git\segmentation_models.pytorch\output\stl",
 
-        "output_stride": 16,
+        "output_stride": 32,
         # "stragety": "clip-rotated-32x-customLR-wd1e5", #"clip-rotated-32x-focal", #
         # "stragety": "clip-rotated-bce-adam-customLR1-32x-wd10-5",
-        # "stragety": "clip-rotated-bce-adam-customLR1-32x-wd0",
-        "stragety": "clip-rotated-16x-customLR1",
+        "stragety": "clip-rotated-bce-adam-customLR1-32x-wd0",
+        # "stragety": "clip-rotated-16x-customLR1",
         # "stragety": "clip-rotated-class3",
         "sigmoid_threshold": 0.5,
         # "vis_graph": True,
-        "is_multilabels": False
+        "is_multilabels": False,
+
+        "encoder_depth": 5,
+        "decoder_channels": [256, 128, 64, 32, 16],
+        ## preprocess
+        # "aug_name": "noclip-rotated",
+        "aug_name": "clip-rotated",
     } 
 
     test_dataset = smp.datasets.SegDataset1(
@@ -533,6 +559,6 @@ if __name__ == "__main__":
         status=False,
         is_multilabels=entrance["is_multilabels"],
     )
-    # test(test_dataset, **entrance)
-    generate_stl(**entrance)
+    test(test_dataset, **entrance)
+    # generate_stl(**entrance)
     print("Happy End!")

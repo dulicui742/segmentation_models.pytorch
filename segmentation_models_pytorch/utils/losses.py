@@ -7,6 +7,18 @@ from . import functional as F
 from ..base.modules import Activation
 from ..losses.focal import FocalLoss as FL
 from ..losses.dice import DiceLoss as DL
+from ..losses.unified_focal_loss_pytorch import(
+    SymmetricUnifiedFocalLoss as SUFL,
+    AsymmetricUnifiedFocalLoss as AUFL,
+    AsymmetricFocalTverskyLoss as AFTL,
+    SymmetricFocalTverskyLoss as SFTL,
+    AsymmetricFocalLoss as AFL,
+    SymmetricFocalLoss as SFL,
+)
+from ..losses.tversky import(
+    TverskyLoss as TL,
+    TverskyLossFocal as TLF,
+)
 
 
 class JaccardLoss(base.Loss):
@@ -87,4 +99,36 @@ class BCEWithLogitsLoss(nn.BCEWithLogitsLoss, base.Loss):
 
 
 class FocalLoss(FL, base.Loss):
+    pass
+
+
+class SymmetricUnifiedFocalLoss(SUFL, base.Loss):
+    pass
+
+
+class AsymmetricUnifiedFocalLoss(AUFL, base.Loss):
+    pass
+
+
+class AsymmetricFocalTverskyLoss(AFTL, base.Loss):
+    pass
+
+
+class SymmetricFocalTverskyLoss(SFTL, base.Loss):
+    pass
+
+
+class AsymmetricFocalLoss(AFL, base.Loss):
+    pass
+
+
+class SymmetricFocalLoss(SFL, base.Loss):
+    pass
+
+
+class TverskyLoss(TL, base.Loss):
+    pass
+
+
+class TverskyLossFocal(TLF, base.Loss):
     pass

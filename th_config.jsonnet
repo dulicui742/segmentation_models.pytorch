@@ -24,6 +24,8 @@ local checkArgs(args) =
     "wbce",
     "dice-focal",
     "dice-bce",
+    "aufl",
+    "sufl",
   ], args.loss_function): "=======" + "loss: " + args.loss_function + " is invalid======";
   assert std.member([
     "rms",

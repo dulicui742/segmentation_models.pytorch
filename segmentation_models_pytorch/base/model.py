@@ -25,7 +25,7 @@ class SegmentationModel(torch.nn.Module):
         self.scale_factor = [2] * self.encoder._depth
         for i in range(len(self.encoder.dilation_list)):
             self.scale_factor[i] = 1
-        print(self.scale_factor) 
+        print(f"scale_factor: {self.scale_factor}, dilation_list: {self.encoder.dilation_list}") 
         return self.scale_factor
 
     def forward(self, x):
